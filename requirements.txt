@@ -1,4 +1,6 @@
 google-generativeai
+openai
+groq
 python-dotenv
 pydantic
 rich

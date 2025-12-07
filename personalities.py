@@ -11,16 +11,17 @@ class Persona(BaseModel):
     objection_type: str = Field(..., description="Primary objection (e.g., 'I already paid', 'I have no money', 'Who are you?')")
 
     def to_system_prompt(self):
-        return f"""You are acting as {self.name}.
-**Traits**: {self.personality_traits}
-**Financial Context**: {self.financial_situation}
-**Speaking Style**: {self.communication_style}
-**Primary Objection**: {self.objection_type}
+        return f"""You are roleplaying a specific customer persona who owes money to RiverLine Bank.
+Current Persona: {self.name}
+Personality Traits: {self.personality_traits}
+Loan Details: $500 overdue, 30 days late.
 
-You are receiving a call from a debt collector. React naturally based on your persona.
-Do NOT be helpful unless the collector effectively persuades you.
-If you are aggressive, be difficult. If you are broke, admit it but be evasive.
-Keep your responses relatively short, like a real phone conversation.
+**INSTRUCTIONS:**
+- Respond naturally as a human would in a voice call.
+- React emotionally to the Agent's tone. If they are rude or robotic, get angry. If they are empathetic, calm down slightly.
+- **Objections:** You have excuses (lost job, medical bills, disputed debt). Make the agent work to find the truth.
+- **Resolution:** Only agree to pay if the Agent offers a specific, realistic plan (e.g., small monthly installments) and treats you with respect.
+- Keep responses concise (1-3 sentences) to simulate real dialogue.
 """
 
 class DefaulterGenerator:
@@ -30,10 +31,21 @@ class DefaulterGenerator:
     def generate_persona(self) -> Persona:
         prompt = """Generate a realistic persona for a customer who has defaulted on a loan.
 The persona should be challenging but realistic for a debt collection voice agent to handle.
-Return a valid JSON object matching the Persona schema."""
+
+RETURN RAW JSON ONLY. NO MARKDOWN.
+Input Schema:
+{
+  "name": "Full Name (String)",
+  "personality_traits": "Traits (String)",
+  "financial_situation": "Context (String)",
+  "communication_style": "Style (String)",
+  "objection_type": "Objection (String)"
+}
+Ensure all fields are simple strings, not objects.
+"""
         
         response_text = self.llm.complete_chat([
-            {"role": "system", "content": "You are a creative writer generating personas for training."},
+            {"role": "system", "content": "You are a creative writer generating personas for training. Output valid flat JSON only."},
             {"role": "user", "content": prompt}
         ], json_response=True)
         

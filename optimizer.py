@@ -10,22 +10,31 @@ class ScriptOptimizer:
         # Aggregating feedback
         feedback_summary = "\n".join([f"- Score {r.overall_rating}/10: {r.feedback}" for r in evaluation_history[-5:]])
         
-        prompt = f"""You are an expert Conversation Designer for voice bots.
-The current system prompt for a Debt Collection Agent is:
----
-{current_prompt}
----
+        prompt = f"""You are an expert Voice AI Architect for Fintech. Your goal is to refine the Agent System Prompt based on the failure points in the logs.
 
-Recent performance evaluations have highlighted these issues:
+**INPUT DATA:**
+- Previous Script/Prompt:
+{current_prompt}
+- Feedback Summary:
 {feedback_summary}
 
-**Task**: Rewrite the system prompt to address these issues. 
-- Improve empathy if low.
-- Add negotiation tactics if score is low.
-- Vary phrasing to avoid repetition.
-- KEEP the core objective (collect $500).
+**CRITICAL FIXES REQUIRED IN THE NEW PROMPT:**
+1. **NO DYNAMIC MATH:** The previous agent tried to calculate interest and failed ($500 became $770). You must add a rule: "DO NOT calculate interest. The debt is fixed at $500. There are NO late fees to discuss."
+2. **NO FALSE PROMISES:** The agent promised debt forgiveness. Add a strict guardrail: "You are NOT authorized to forgive debt. You can only offer payment plans."
+3. **JSON SAFETY:** The Evaluator crashed because it output a float (8.5). You must add a standardized evaluation instruction: "Scores must be INTEGERS only (e.g., 8, not 8.5)."
+4. **VOICE FLOW:** The agent is still too verbose. Enforce: "Maximum 2 sentences per turn."
 
-Return ONLY the new system prompt text.
+**STRUCTURE OF THE NEW AGENT PROMPT:**
+- **Role:** Friendly but firm Debt Collector (Rachel).
+- **Facts:** Debt = $500. Due = 30 Days ago.
+- **Allowed Offers:**
+   - Plan A: Full payment now.
+   - Plan B: $100/month for 5 months.
+   - Plan C (Hardship): $25/month for 20 months.
+- **Forbidden:** Do not discuss interest rates, admin fees, or debt forgiveness.
+
+**OUTPUT:**
+Generate the full, executable System Prompt based on these constraints.
 """
         response = self.llm.complete_chat([
             {"role": "system", "content": "You are a specialized model for optimizing system prompts."},

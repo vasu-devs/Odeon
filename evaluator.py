@@ -27,18 +27,44 @@ Return a JSON object with scores (1-10) and feedback.
 - **overall_rating**: General performance.
 
 **Conversation**:
+**Conversation**:
 {conversation_text}
 
-Output JSON matching the EvaluationResult schema.
+Assess the agent on a scale of 1-10.
+IMPORTANT: The score MUST be a whole Integer (e.g., 7). DO NOT use decimals (e.g., 7.5).
+Return the result in strictly valid JSON format matching this structure:
+{{
+  "repetition_score": 1-10,
+  "negotiation_score": 1-10,
+  "empathy_score": 1-10,
+  "overall_rating": 1-10,
+  "feedback": "Concise feedback string"
+}}
 """
         response = self.llm.complete_chat([
-            {"role": "system", "content": "You are a QA lead evaluating voice agents."},
+            {"role": "system", "content": "You are a QA lead evaluating voice agents. Return ONLY JSON."},
             {"role": "user", "content": prompt}
         ], json_response=True)
 
+        if not response:
+            return EvaluationResult(repetition_score=0, negotiation_score=0, empathy_score=0, overall_rating=0, feedback="LLM failed to respond")
+
         try:
-            data = json.loads(response)
+            # Clean up potential markdown formatting
+            cleaned_response = response.strip()
+            if cleaned_response.startswith("```json"):
+                cleaned_response = cleaned_response[7:]
+            if cleaned_response.endswith("```"):
+                cleaned_response = cleaned_response[:-3]
+            
+            # Additional cleanup for Llama which might add text before/after
+            start = cleaned_response.find('{')
+            end = cleaned_response.rfind('}') + 1
+            if start != -1 and end != 0:
+                cleaned_response = cleaned_response[start:end]
+            
+            data = json.loads(cleaned_response)
             return EvaluationResult(**data)
         except Exception as e:
-            print(f"Evaluation failed: {e}")
-            return EvaluationResult(repetition_score=0, negotiation_score=0, empathy_score=0, overall_rating=0, feedback="Error")
+            print(f"Evaluation failed to parse JSON: {e}. Response was: {response}")
+            return EvaluationResult(repetition_score=0, negotiation_score=0, empathy_score=0, overall_rating=0, feedback="Error parsing JSON")

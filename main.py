@@ -2,6 +2,9 @@ import argparse
 import os
 from rich.console import Console
 from rich.table import Table
+from dotenv import load_dotenv
+
+load_dotenv()
 
 from llm_client import LLMClient
 from agent import DebtCollectionAgent
@@ -12,12 +15,75 @@ from optimizer import ScriptOptimizer
 
 console = Console()
 
+from rich.prompt import Prompt, Confirm
+
+def setup_wizard():
+    console.clear()
+    console.rule("[bold cyan]Voice Agent Gym - Setup Wizard[/bold cyan]")
+    
+    # 1. Select Provider
+    providers = ["gemini", "groq", "openai", "local"]
+    provider = Prompt.ask("Select LLM Provider", choices=providers, default="groq")
+    
+    # Defaults
+    api_key = None
+    model_name = None
+    base_url = None
+    
+    # Dictionary to hold clients for different roles (Agent, Persona, Evaluator)
+    # Default: All same
+    clients = {}
+
+    # 2. Configure Provider
+    if provider == "groq":
+        console.print("[green]Groq selected! Applying recommended optimized models...[/green]")
+        default_key = os.getenv("GROQ_API_KEY", "")
+        api_key = Prompt.ask("Enter Groq API Key", default=default_key, password=True)
+        
+        # Instantiate 3 clients with recommended models
+        clients["agent"] = LLMClient(provider="groq", api_key=api_key, model_name="llama-3.1-8b-instant")
+        clients["generator"] = LLMClient(provider="groq", api_key=api_key, model_name="llama-3.1-8b-instant")
+        clients["evaluator"] = LLMClient(provider="groq", api_key=api_key, model_name="llama-3.1-8b-instant") 
+        clients["optimizer"] = LLMClient(provider="groq", api_key=api_key, model_name="llama-3.1-8b-instant")
+        
+        console.print("[dim]Persona: llama-3.1-8b-instant[/dim]")
+        console.print("[dim]Agent (SUT): llama-3.1-8b-instant[/dim]")
+        console.print("[dim]Evaluator: llama-3.1-8b-instant[/dim]")
+        
+        return clients
+
+    elif provider == "gemini":
+        default_key = os.getenv("GEMINI_API_KEY", "")
+        api_key = Prompt.ask("Enter Gemini API Key", default=default_key, password=True)
+        model_name = Prompt.ask("Enter Model Name", default="gemini-flash-latest")
+    
+    elif provider == "openai":
+        default_key = os.getenv("OPENAI_API_KEY", "")
+        api_key = Prompt.ask("Enter OpenAI API Key", default=default_key, password=True)
+        model_name = Prompt.ask("Enter Model Name", default="gpt-4o")
+
+    elif provider == "local":
+        base_url = Prompt.ask("Enter Base URL", default="http://localhost:1234/v1")
+        model_name = Prompt.ask("Enter Model Name (optional)", default="local-model")
+        api_key = "lm-studio"
+
+    # For non-Groq (or standard), use same client for all
+    client = LLMClient(provider=provider, api_key=api_key, model_name=model_name, base_url=base_url)
+    return {
+        "agent": client,
+        "generator": client,
+        "evaluator": client,
+        "optimizer": client
+    }
+
 def run_simulation_loop(iterations: int):
-    llm = LLMClient()
-    agent = DebtCollectionAgent(llm)
-    generator = DefaulterGenerator(llm)
-    evaluator = Evaluator(llm)
-    optimizer = ScriptOptimizer(llm)
+    # Interactive Setup
+    clients = setup_wizard()
+    
+    agent = DebtCollectionAgent(clients["agent"])
+    generator = DefaulterGenerator(clients["generator"])
+    evaluator = Evaluator(clients["evaluator"])
+    optimizer = ScriptOptimizer(clients["optimizer"])
 
     evaluation_history = []
 
@@ -26,7 +92,11 @@ def run_simulation_loop(iterations: int):
         
         # 1. Generate Persona
         persona = generator.generate_persona()
-        defaulter = DefaulterAgent(persona, llm)
+        defaulter = DefaulterAgent(persona, clients["generator"])
+        
+        # Inject name into Agent (SUT)
+        agent.reset(defaulter_name=persona.name)
+        
         console.print(f"Testing against: [bold cyan]{persona.name}[/bold cyan] - {persona.objection_type}")
 
         # 2. Run Simulation
@@ -65,7 +135,4 @@ if __name__ == "__main__":
     parser.add_argument("--iterations", type=int, default=3, help="Number of self-correction loops")
     args = parser.parse_args()
     
-    if not os.getenv("GEMINI_API_KEY"):
-        console.print("[bold red]Please set GEMINI_API_KEY environment variable[/bold red]")
-    else:
-        run_simulation_loop(args.iterations)
+    run_simulation_loop(args.iterations)

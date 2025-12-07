@@ -1,100 +1,136 @@
 import os
 import google.generativeai as genai
+from openai import OpenAI
+from groq import Groq
 from dotenv import load_dotenv
-import json
 
 load_dotenv()
 
 class LLMClient:
-    def __init__(self):
-        # Assumes GEMINI_API_KEY is in environment variables
-        api_key = os.getenv("GEMINI_API_KEY")
-        if not api_key:
-            print("WARNING: GEMINI_API_KEY not found in env.")
-        else:
-            genai.configure(api_key=api_key)
+    def __init__(self, provider="gemini", api_key=None, model_name=None, base_url=None):
+        self.provider = provider
+        self.api_key = api_key
+        self.model_name = model_name
+        self.base_url = base_url
+
+        # Defaults if not provided
+        if not self.provider:
+            self.provider = "gemini"
         
-        # User requested Gemini 2.0 Flash. 
-        # Note: Exact model name for 2.0 Flash might be 'gemini-2.0-flash-exp' during preview, 
-        # or we fallback to 'gemini-1.5-flash' if 2.0 isn't public yet. 
-        # Using 'gemini-2.0-flash-exp' as requested.
-        self.model_name = "gemini-flash-latest" 
-        self.generation_config = {
-            "temperature": 0.7,
-            "top_p": 1,
-            "top_k": 32,
-        }
-
-    def complete_chat(self, messages, temperature=0.7, json_response=False):
-        """
-        Wrapper for chat completions using Gemini.
-        messages: list of {"role": "...", "content": "..."}
-        """
-        try:
-            # Convert OpenAI-style messages to Gemini history if needed, 
-            # or just use the generative model's chat method.
-            # Gemini typically expects a specific structure or just a prompt for simple cases.
-            # For simplicity in this wrapper, we'll concatenate for a single prompt 
-            # or use the chat session if we were maintaining state here.
-            # Given the calling code passes a full history list every time, 
-            # we should probably construct a fresh chat session or format it as a prompt.
-            
-            # Simple conversion for stateless "complete_chat":
-            # Just send the last message? No, we need context.
-            # We'll map "system" to a system instruction if possible, but the python sdk 
-            # handles system instructions in the model config or we can prepend it.
-            
-            system_instruction = None
-            gemini_history = []
-            
-            last_message = ""
-            
-            for msg in messages:
-                role = msg["role"]
-                content = msg["content"]
-                
-                if role == "system":
-                    # Prepend to history or use as system instruction
-                    # For simplicty, let's just make it the first part of context if logic permits,
-                    # but Gemini 1.5+ supports system_instruction argument in GenerativeModel.
-                    if system_instruction is None:
-                        system_instruction = content
-                    else:
-                        system_instruction += f"\n{content}"
-                elif role == "user":
-                    gemini_history.append({"role": "user", "parts": [content]})
-                    last_message = content
-                elif role == "assistant":
-                    gemini_history.append({"role": "model", "parts": [content]})
-
-            # If the last message in history is the one we want to send, pop it?
-            # The standard pattern is `chat.send_message(last_user_msg)`.
-            # If the list ends with assistant, we have nothing to answer.
-            # Assuming the caller appended the user message last.
-            
-            if gemini_history and gemini_history[-1]["role"] == "user":
-                last_user_parts = gemini_history.pop()
-                last_message = last_user_parts["parts"][0]
+        if self.provider == "gemini":
+            if not self.api_key:
+                self.api_key = os.getenv("GEMINI_API_KEY")
+            if not self.api_key:
+                print("WARNING: GEMINI_API_KEY missing.")
             else:
-                # If no user message at end, maybe it's a pure generation (unlikely in this app flow)
-                last_message = "continue"
-
-            model = genai.GenerativeModel(
-                model_name=self.model_name,
-                system_instruction=system_instruction
-            )
+                genai.configure(api_key=self.api_key)
             
-            config = self.generation_config.copy()
-            config["temperature"] = temperature
-            if json_response:
-                config["response_mime_type"] = "application/json"
+            if not self.model_name:
+                self.model_name = "gemini-flash-latest"
 
-            chat = model.start_chat(history=gemini_history)
-            response = chat.send_message(last_message, generation_config=config)
+        elif self.provider == "groq":
+            if not self.api_key:
+                self.api_key = os.getenv("GROQ_API_KEY")
             
-            return response.text
+            if not self.api_key:
+                 print("WARNING: GROQ_API_KEY missing.")
+            
+            self.client = Groq(api_key=self.api_key)
+            
+            if not self.model_name:
+                self.model_name = "llama-3.1-70b-versatile"
+
+        elif self.provider in ["openai", "local"]:
+            if not self.api_key and self.provider == "openai":
+                self.api_key = os.getenv("OPENAI_API_KEY")
+            
+            # For local, api_key might be irrelevant but string required
+            if not self.api_key and self.provider == "local":
+                self.api_key = "lm-studio" 
+
+            if not self.base_url and self.provider == "local":
+                 # Default to standard local port if not set
+                self.base_url = "http://localhost:1234/v1"
+
+            self.client = OpenAI(api_key=self.api_key, base_url=self.base_url)
+            
+            if not self.model_name:
+                self.model_name = "gpt-4o" if self.provider == "openai" else "local-model"
+
+    def complete_chat(self, messages, temperature=0.7, json_response=False, stop=None):
+        try:
+            if self.provider == "gemini":
+                return self._complete_gemini(messages, temperature, json_response, stop)
+            elif self.provider in ["openai", "local"]:
+                return self._complete_openai(messages, temperature, json_response, stop)
+            elif self.provider == "groq":
+                return self._complete_groq(messages, temperature, json_response, stop)
         except Exception as e:
-            print(f"CRITICAL LLM ERROR: {e}")
-            import traceback
-            traceback.print_exc()
+            print(f"LLM ERROR ({self.provider}): {e}")
             return None
+
+    def _complete_openai(self, messages, temperature, json_response, stop):
+        kwargs = {
+            "model": self.model_name,
+            "messages": messages,
+            "temperature": temperature,
+        }
+        if stop:
+            kwargs["stop"] = stop
+        if json_response and self.provider == "openai":
+             # "local" might not support json_object mode
+            kwargs["response_format"] = {"type": "json_object"}
+
+        response = self.client.chat.completions.create(**kwargs)
+        return response.choices[0].message.content
+
+    def _complete_groq(self, messages, temperature, json_response, stop):
+        kwargs = {
+            "model": self.model_name,
+            "messages": messages,
+            "temperature": temperature,
+        }
+        if stop:
+            kwargs["stop"] = stop
+        if json_response:
+             kwargs["response_format"] = {"type": "json_object"}
+
+        response = self.client.chat.completions.create(**kwargs)
+        return response.choices[0].message.content
+
+    def _complete_gemini(self, messages, temperature, json_response, stop):
+        system_instruction = None
+        gemini_history = []
+        last_message = ""
+        
+        for msg in messages:
+            role = msg["role"]
+            content = msg["content"]
+            if role == "system":
+                if system_instruction is None: system_instruction = content
+                else: system_instruction += f"\n{content}"
+            elif role == "user":
+                gemini_history.append({"role": "user", "parts": [content]})
+                last_message = content
+            elif role == "assistant":
+                gemini_history.append({"role": "model", "parts": [content]})
+
+        if gemini_history and gemini_history[-1]["role"] == "user":
+            gemini_history.pop() # Remove last user msg to send it as trigger
+        else:
+            last_message = "continue"
+
+        model = genai.GenerativeModel(
+            model_name=self.model_name,
+            system_instruction=system_instruction
+        )
+        
+        config = genai.types.GenerationConfig(
+            temperature=temperature,
+            response_mime_type="application/json" if json_response else "text/plain",
+            stop_sequences=stop if stop else []
+        )
+
+        chat = model.start_chat(history=gemini_history)
+        response = chat.send_message(last_message, generation_config=config)
+        return response.text
