@@ -121,7 +121,8 @@ def run_simulation_loop(iterations: int):
         # 4. Self-Correction (if not the last iteration)
         if i < iterations:
             console.print("[bold green]Optimizing Agent Script...[/bold green]")
-            new_prompt = optimizer.optimize_screenplay(agent.system_prompt, evaluation_history)
+            # Use raw_system_prompt to avoid baking in the current defaulter's name
+            new_prompt = optimizer.optimize_screenplay(agent.raw_system_prompt, evaluation_history)
             agent.update_prompt(new_prompt)
             console.print("[dim]New prompt applied for next round.[/dim]")
             console.print(f"[dim]Prompt preview: {new_prompt[:100]}...[/dim]")
@@ -132,7 +133,7 @@ def run_simulation_loop(iterations: int):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Voice Agent Auto-Tester & Optimizer")
-    parser.add_argument("--iterations", type=int, default=3, help="Number of self-correction loops")
+    parser.add_argument("--iterations", type=int, default=5, help="Number of self-correction loops")
     args = parser.parse_args()
     
     run_simulation_loop(args.iterations)
