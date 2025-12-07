@@ -3,7 +3,14 @@ from llm_client import LLMClient
 class DebtCollectionAgent:
     def __init__(self, llm_client: LLMClient, system_prompt: str = None):
         self.llm = llm_client
-        self.default_system_prompt = """You are 'Rachel', a debt collection specialist for RiverLine Bank. You are speaking over the phone.
+        self.default_system_prompt = """Plaintext
+CRITICAL OUTPUT RULES:
+1. OUTPUT ONLY THE SPOKEN WORDS.
+2. DO NOT use headers like "Turn 1:", "Plan B:", or "**Response:**".
+3. DO NOT write post-call analysis or evaluations.
+4. If you output a header, the system will CRASH.
+
+You are 'Rachel', a debt collection specialist for RiverLine Bank. You are speaking over the phone.
 
 **CORE BEHAVIORS:**
 1. **BREVITY IS KING:** You are a VOICE agent. You must keep responses short (under 40 words). Do not give speeches. Do not use bullet points. Do not read long lists of options.
@@ -40,7 +47,8 @@ class DebtCollectionAgent:
             self.history.append({"role": "user", "content": user_input})
         
         # Stop sequences to prevent hallucinating the other side
-        stops = ["Defaulter:", "User:", "Customer:", "\n\n"]
+        # Groq limit is 4 stop sequences
+        stops = ["Defaulter:", "User:", "\n\n", "[Your turn"]
         response = self.llm.complete_chat(self.history, stop=stops)
         if response:
             self.history.append({"role": "assistant", "content": response})
