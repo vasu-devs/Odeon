@@ -76,7 +76,7 @@ def setup_wizard():
         "optimizer": client
     }
 
-def run_simulation_loop(iterations: int):
+def run_simulation_loop(max_cycles: int, batch_size: int = 5, pass_threshold: float = 0.8):
     # Interactive Setup
     clients = setup_wizard()
     
@@ -85,55 +85,81 @@ def run_simulation_loop(iterations: int):
     evaluator = Evaluator(clients["evaluator"])
     optimizer = ScriptOptimizer(clients["optimizer"])
 
-    evaluation_history = []
-
-    for i in range(1, iterations + 1):
-        console.rule(f"[bold yellow]Iteration {i}/{iterations}[/bold yellow]")
+    for cycle in range(1, max_cycles + 1):
+        console.rule(f"[bold yellow]Optimization Cycle {cycle}/{max_cycles}[/bold yellow]")
         
-        # 1. Generate Persona
-        persona = generator.generate_persona()
-        defaulter = DefaulterAgent(persona, clients["generator"])
+        batch_results = []
+        failures = []
         
-        # Inject name into Agent (SUT)
-        agent.reset(defaulter_name=persona.name)
+        # --- Batch Execution ---
+        for b in range(1, batch_size + 1):
+            console.print(f"\n[dim]--- Simulation {b}/{batch_size} ---[/dim]")
+            
+            # 1. Generate Persona
+            persona = generator.generate_persona()
+            defaulter = DefaulterAgent(persona, clients["generator"])
+            
+            # Inject name into Agent (SUT)
+            agent.reset(defaulter_name=persona.name)
+            
+            console.print(f"Testing against: [bold cyan]{persona.name}[/bold cyan] - {persona.objection_type}")
+    
+            # 2. Run Simulation
+            simulator = ConversationSimulator(agent, defaulter)
+            logs = simulator.run()
+    
+            # 3. Evaluate
+            result = evaluator.evaluate_conversation(logs)
+            
+            # Display Score
+            table = Table(title=f"Result: {persona.name}")
+            table.add_column("Metric", style="cyan")
+            table.add_column("Score", style="magenta")
+            table.add_row("Overall", str(result.overall_rating))
+            console.print(table)
+            console.print(f"[bold]Feedback:[/bold] {result.feedback}")
+            
+            batch_results.append(result)
+            
+            if result.overall_rating < 8.5:
+                failures.append({
+                    "persona": persona,
+                    "result": result,
+                    "logs": logs
+                })
         
-        console.print(f"Testing against: [bold cyan]{persona.name}[/bold cyan] - {persona.objection_type}")
-
-        # 2. Run Simulation
-        simulator = ConversationSimulator(agent, defaulter)
-        logs = simulator.run()
-
-        # 3. Evaluate
-        result = evaluator.evaluate_conversation(logs)
-        evaluation_history.append(result)
+        # --- Batch Analysis ---
+        passes = len([r for r in batch_results if r.overall_rating >= 8.5])
+        success_rate = passes / batch_size
         
-        # Display Score
-        table = Table(title="Evaluation Result")
-        table.add_column("Metric", style="cyan")
-        table.add_column("Score", style="magenta")
-        table.add_row("Repetition", str(result.repetition_score))
-        table.add_row("Negotiation", str(result.negotiation_score))
-        table.add_row("Empathy", str(result.empathy_score))
-        table.add_row("Overall", str(result.overall_rating))
-        console.print(table)
-        console.print(f"[bold]Feedback:[/bold] {result.feedback}")
-
-        # 4. Self-Correction (if not the last iteration)
-        if i < iterations:
-            console.print("[bold green]Optimizing Agent Script...[/bold green]")
+        console.rule("[bold green]Batch Report[/bold green]")
+        console.print(f"Cycle {cycle} Result: [bold]{passes}/{batch_size} Passed[/bold] ({success_rate*100:.1f}%)")
+        
+        if success_rate >= pass_threshold:
+            console.print(f"[bold green]SUCCESS! Threshold ({pass_threshold*100}%) met. stopping optimization.[/bold green]")
+            console.print(f"Final Agent Prompt saved.")
+            break
+        
+        if cycle < max_cycles:
+            if not failures:
+                console.print("[yellow]Odd... Success rate low but no failures captured? Continuing...[/yellow]")
+                continue
+                
+            console.print(f"[bold red]Threshold not met. Optimizing based on {len(failures)} failures...[/bold red]")
+            
+            # 4. Self-Correction
             # Use raw_system_prompt to avoid baking in the current defaulter's name
-            new_prompt = optimizer.optimize_screenplay(agent.raw_system_prompt, evaluation_history)
+            new_prompt = optimizer.optimize_screenplay(agent.raw_system_prompt, failures)
             agent.update_prompt(new_prompt)
             console.print("[dim]New prompt applied for next round.[/dim]")
-            console.print(f"[dim]Prompt preview: {new_prompt[:100]}...[/dim]")
-
-    console.rule("[bold green]Final Report[/bold green]")
-    avg_score = sum([r.overall_rating for r in evaluation_history]) / len(evaluation_history)
-    console.print(f"Average Overall Score: {avg_score:.2f}/10")
+            
+    console.print("[bold blue]Test Suite Completed.[/bold blue]")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Voice Agent Auto-Tester & Optimizer")
-    parser.add_argument("--iterations", type=int, default=5, help="Number of self-correction loops")
+    parser.add_argument("--cycles", type=int, default=5, help="Max optimization cycles")
+    parser.add_argument("--batch", type=int, default=5, help="Simulations per cycle")
+    parser.add_argument("--threshold", type=float, default=0.8, help="Pass threshold (0.0-1.0)")
     args = parser.parse_args()
     
-    run_simulation_loop(args.iterations)
+    run_simulation_loop(args.cycles, args.batch, args.threshold)

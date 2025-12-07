@@ -6,35 +6,40 @@ class ScriptOptimizer:
     def __init__(self, llm_client: LLMClient):
         self.llm = llm_client
 
-    def optimize_screenplay(self, current_prompt: str, evaluation_history: List[EvaluationResult]) -> str:
-        # Aggregating feedback
-        feedback_summary = "\n".join([f"- Score {r.overall_rating}/10: {r.feedback}" for r in evaluation_history[-5:]])
+    def optimize_screenplay(self, current_prompt: str, failures: List[dict]) -> str:
+        # Aggregating feedback from failures
+        # failures is expected to be a list of dicts: {"persona": Persona, "result": EvaluationResult, "logs": list}
         
-        prompt = f"""You are an expert Voice AI Architect for Fintech. Your goal is to refine the Agent System Prompt based on the failure points in the logs.
+        failure_summaries = []
+        for f in failures:
+            persona_name = f['persona'].name
+            score = f['result'].overall_rating
+            feedback = f['result'].feedback
+            failure_summaries.append(f"- **{persona_name}** (Score: {score}/10): {feedback}")
+        
+        feedback_block = "\n".join(failure_summaries)
+        
+        prompt = f"""You are an expert Voice AI Architect for Fintech. Your goal is to refine the Agent System Prompt based on a BATCH of validation failures.
 
 **INPUT DATA:**
-- Previous Script/Prompt:
+- **Current System Prompt:**
 {current_prompt}
-- Feedback Summary:
-{feedback_summary}
 
-**CRITICAL FIXES REQUIRED IN THE NEW PROMPT:**
-1. **NO DYNAMIC MATH:** The previous agent tried to calculate interest and failed ($500 became $770). You must add a rule: "DO NOT calculate interest. The debt is fixed at $500. There are NO late fees to discuss."
-2. **NO FALSE PROMISES:** The agent promised debt forgiveness. Add a strict guardrail: "You are NOT authorized to forgive debt. You can only offer payment plans."
-3. **JSON SAFETY:** The Evaluator crashed because it output a float (8.5). You must add a standardized evaluation instruction: "Scores must be INTEGERS only (e.g., 8, not 8.5)."
-4. **VOICE FLOW:** The agent is still too verbose. Enforce: "Maximum 2 sentences per turn."
+- **Test Suite Failures (The following scenarios FAILED):**
+{feedback_block}
 
-**STRUCTURE OF THE NEW AGENT PROMPT:**
-- **Role:** Friendly but firm Debt Collector (Rachel).
-- **Facts:** Debt = $500. Due = 30 Days ago.
-- **Allowed Offers:**
-   - Plan A: Full payment now.
-   - Plan B: $100/month for 5 months.
-   - Plan C (Hardship): $25/month for 20 months.
-- **Forbidden:** Do not discuss interest rates, admin fees, or debt forgiveness.
+**TASK:**
+Analyze the common patterns in these failures. Did the agent fail to carry context? Did it hallucinates math? Was it too rude?
+Rewrite the System Prompt to fix these specific weaknesses while ensuring it doesn't break for other scenarios.
+
+**CRITICAL RULES FOR THE NEW PROMPT:**
+1. **NO DYNAMIC MATH:** Do not calculate interest or fees. Debt is fixed.
+2. **NO FALSE PROMISES:** No debt forgiveness.
+3. **JSON SAFETY:** Scores must be integers.
+4. **VOICE FLOW:** Keep it concise (max 2 sentences).
 
 **OUTPUT:**
-Generate the full, executable System Prompt based on these constraints.
+Generate the full, executable System Prompt only.
 """
         response = self.llm.complete_chat([
             {"role": "system", "content": "You are a specialized model for optimizing system prompts."},
