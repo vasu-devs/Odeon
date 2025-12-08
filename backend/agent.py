@@ -11,6 +11,16 @@ class DebtCollectionAgent:
 4. If you output a header, the system will CRASH.
 """
 
+    ANTI_HALLUCINATION_RULES = """<strict_constraints>
+1. YOU ARE DUMB. Do not be helpful beyond your specific instructions.
+2. IF the user did not give you a specific payment plan (e.g., "$50/month"), DO NOT INVENT ONE. Say: "I do not have a plan for that."
+3. IF the user did not give you a specific interest rate, DO NOT INVENT ONE. Say: "I do not have that information."
+4. IF the user did not give you a company name, use "The Agency".
+5. Do NOT hallucinate PO Boxes, websites, or phone numbers.
+6. Your goal is to follow the user's prompt EXACTLY. If the prompt is bad, you must be bad.
+</strict_constraints>
+"""
+
     DEFAULT_RACHEL_CORE = """You are 'Rachel', a debt collection specialist for RiverLine Bank. You are speaking over the phone.
 
 **CORE BEHAVIORS:**
@@ -42,48 +52,19 @@ class DebtCollectionAgent:
         # If user provides a prompt, use it. Otherwise use default Rachel core.
         core_prompt = system_prompt if system_prompt else self.DEFAULT_RACHEL_CORE
         
-        # programmatically prepend safety rules
-        self.raw_system_prompt = f"{self.SAFETY_RULES}\n\n{core_prompt}"
+        # programmatically prepend safety rules AND anti-hallucination rules
+        # We wrap the user prompt in <user_instructions> as requested
+        self.raw_system_prompt = f"{self.SAFETY_RULES}\n{self.ANTI_HALLUCINATION_RULES}\n\n<user_instructions>\n{core_prompt}\n</user_instructions>"
         
         self.system_prompt = self.raw_system_prompt.replace("{defaulter_name}", "[Defaulter Name]")
         self.history = [{"role": "system", "content": self.system_prompt}]
 
     def update_prompt(self, new_prompt: str):
-        # We assume new_prompt coming from optimizer might NOT have rules if the optimizer rewrote just the core?
-        # OR the optimizer returns the full prompt? 
-        # The optimizer usually rewrites the whole thing.
-        # User instruction: "The Backend wraps it in safety rules... The Optimizer evolves it... The final output is an optimized version".
-        # If the optimizer sees the full prompt (including rules) and optimizes it, it might keep the rules. 
-        # BUT if I force prepend, I might duplicate.
-        # Let's check `optimizer.py`. It takes `current_prompt` (which now has rules).
-        # It says "Rewrite the System Prompt...".
-        # If I wrap it here again, I need to be careful.
-        # However, for the INITIAL User Input (from UI), it definitely needs wrapping.
-        # If `update_prompt` is called by `server.py` with `new_prompt` from Optimizer, 
-        # check if it already has rules?
-        # User said: "Logic: final = SAFETY + user_prompt".
-        # I'll stick to wrapping user input. For optimizer updates, I'll trust the optimizer 
-        # OR I should wrap if it seems missing.
-        # Safest bet: The optimizer returns a "System Prompt". 
-        # If I want to enforce rules, I should probably strip old rules and re-add, or just treat the input as the core.
-        # Let's assume `update_prompt` is called with a FULL prompt from optimizer, so I won't re-wrap it to avoid duplication,
-        # UNLESS the user explicitly wants me to wrap strictly user inputs.
-        # Actually, `server.py` calls `update_prompt` with the optimizer output.
-        # The optimizer output is based on `current_prompt`.
-        # I will modify `update_prompt` to just set it, assuming optimizer handles it, 
-        # BUT for the initial set up from UI, `__init__` handles the wrapping.
-        
-        # Wait, if `server.py` takes `config.base_prompt` and calls `agent.update_prompt(config.base_prompt)`,
-        # then `update_prompt` MUST wrap it if it's a raw user string.
-        # But if it's from optimizer...
-        # I will make `update_prompt` wrap it ONLY IF it acts as a "reset" from config. 
-        # But `server.py` logic uses `update_prompt` for both.
-        # I will rename the method or add a flag. 
-        # Let's use `set_system_prompt` for raw user input (wrapped) and `set_full_prompt` for optimizer.
-        # Or just checking if "CRITICAL OUTPUT RULES" is inside.
+        # We assume the optimizer returns a new "Core" prompt or full prompt.
+        # To be safe, if we don't see the rules, we re-wrap.
         
         if "CRITICAL OUTPUT RULES" not in new_prompt:
-             self.raw_system_prompt = f"{self.SAFETY_RULES}\n\n{new_prompt}"
+             self.raw_system_prompt = f"{self.SAFETY_RULES}\n{self.ANTI_HALLUCINATION_RULES}\n\n<user_instructions>\n{new_prompt}\n</user_instructions>"
         else:
              self.raw_system_prompt = new_prompt
              

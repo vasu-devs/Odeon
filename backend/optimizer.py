@@ -35,6 +35,9 @@ class ScriptOptimizer:
 
 **TASK:**
 Analyze the common patterns in these failures. Did the agent fail to carry context? Did it hallucinates math? Was it too rude?
+
+Your goal is to achieve a success rate of {target_threshold:.0%}. You do not need to achieve 100%. Focus on fixing the specific failures that prevent reaching this threshold. If the current score is close to the threshold, make minor adjustments. If it is far, make major adjustments.
+
 Rewrite the System Prompt to fix these specific weaknesses while ensuring it doesn't break for other scenarios.
 
 **CRITICAL RULES FOR THE NEW PROMPT:**

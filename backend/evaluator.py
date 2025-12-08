@@ -27,6 +27,9 @@ class Evaluator:
 3. **Empathy:** (10 = Validated user feelings perfectly, 1 = Cold/Transactional).
 4. **Overall:** (The calculated average of the above three scores).
 
+**PENALTY CLAUSE:**
+- **PENALTY (-3 Points on Overall):** If the Agent mentions specific details (like '18% interest', 'PO Box 1234', or specific dollar amounts for plans) that were likely NOT in the instructions. The Agent should be penalized for inventing policy.
+
 **Conversation**:
 {conversation_text}
 

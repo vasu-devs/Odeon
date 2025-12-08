@@ -131,6 +131,8 @@ async def websocket_endpoint(websocket: WebSocket):
             batch_results = []
             failures = []
             
+            batch_passes = 0
+            
             for b in range(1, batch_size + 1):
                 await websocket.send_json({"type": "log", "message": f"Simulating {b}/{batch_size}..."})
                 
@@ -151,14 +153,22 @@ async def websocket_endpoint(websocket: WebSocket):
                 result = await asyncio.to_thread(evaluator.evaluate_conversation, logs)
                 
                 passed = result.overall_rating >= min_score
+                if passed:
+                    batch_passes += 1
+                
                 new_prompt_str = None
                 
-                # 4. Immediate Optimization if Failed
-                if not passed:
-                    await websocket.send_json({"type": "log", "message": f"Scenario Failed ({result.overall_rating}/{min_score}). Optimizing..."})
+                # Calculate current cumulative rate
+                current_rate = batch_passes / b
+                
+                # 4. Immediate Optimization if Failed AND Threshold not met
+                # User Requirement: "Optimizer should not try to rewrite... to get to 1.0"
+                # If we failed this one, but our average is still >= threshold, skip optimization.
+                
+                if not passed and current_rate < pass_threshold:
+                    await websocket.send_json({"type": "log", "message": f"Scenario Failed ({result.overall_rating}/{min_score}). Rate: {current_rate:.1%} < {pass_threshold:.0%}. Optimizing..."})
                     
                     # We optimize based on this single failure for immediate feedback
-                    # Note: Passing single failure might be volatile, but requested by user ("modify after each scenario")
                     single_failure = [{
                         "persona": persona,
                         "result": result,
@@ -170,7 +180,7 @@ async def websocket_endpoint(websocket: WebSocket):
                             optimizer.optimize_screenplay, 
                             current_prompt, 
                             single_failure, 
-                            previous_success_rate=0.0, # Immediate fail
+                            previous_success_rate=current_rate, 
                             target_threshold=pass_threshold
                         )
                         
@@ -181,7 +191,7 @@ async def websocket_endpoint(websocket: WebSocket):
                             "cycle": cycle,
                             "old_prompt": current_prompt,
                             "new_prompt": new_prompt,
-                            "reasoning": f"Optimized after scenario {b} failure."
+                            "reasoning": f"Optimized after scenario {b} failure. Rate {current_rate:.1%}"
                         }
                         optimization_storage.append(opt_entry)
                         
@@ -193,6 +203,9 @@ async def websocket_endpoint(websocket: WebSocket):
                         
                     except Exception as opt_err:
                         console.print(f"[red]Optimization Error: {opt_err}[/red]")
+                
+                elif not passed and current_rate >= pass_threshold:
+                     await websocket.send_json({"type": "log", "message": f"Scenario Failed, but Rate {current_rate:.1%} >= Threshold. Skipping Optimization."})
 
                 # Add to storage
                 result_dict = {
