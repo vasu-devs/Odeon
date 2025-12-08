@@ -1,12 +1,13 @@
 from llm_client import LLMClient
 from typing import List
 from evaluator import EvaluationResult
+import json
 
 class ScriptOptimizer:
     def __init__(self, llm_client: LLMClient):
         self.llm = llm_client
 
-    def optimize_screenplay(self, current_prompt: str, failures: List[dict]) -> str:
+    def optimize_screenplay(self, current_prompt: str, failures: List[dict], previous_success_rate: float = 0.0, target_threshold: float = 0.8) -> str:
         # Aggregating feedback from failures
         # failures is expected to be a list of dicts: {"persona": Persona, "result": EvaluationResult, "logs": list}
         
@@ -28,6 +29,10 @@ class ScriptOptimizer:
 - **Test Suite Failures (The following scenarios FAILED):**
 {feedback_block}
 
+- **Success Metrics:**
+  - Current Rate: {previous_success_rate:.1%}
+  - Target Rate: {target_threshold:.1%}
+
 **TASK:**
 Analyze the common patterns in these failures. Did the agent fail to carry context? Did it hallucinates math? Was it too rude?
 Rewrite the System Prompt to fix these specific weaknesses while ensuring it doesn't break for other scenarios.
@@ -37,6 +42,7 @@ Rewrite the System Prompt to fix these specific weaknesses while ensuring it doe
 2. **NO FALSE PROMISES:** No debt forgiveness.
 3. **JSON SAFETY:** Scores must be integers.
 4. **VOICE FLOW:** Keep it concise (max 2 sentences).
+5. **STRICT OPTIMIZATION:** { "We are underperforming. IMPROVE ADAPTABILITY." if previous_success_rate < target_threshold else "We are matching/exceeding expectations. CONSOLIDATE AND PREVENT REGRESSION." }
 
 **OUTPUT:**
 Generate the full, executable System Prompt only.

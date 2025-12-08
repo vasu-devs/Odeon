@@ -58,16 +58,14 @@ class LLMClient:
                 self.model_name = "gpt-4o" if self.provider == "openai" else "local-model"
 
     def complete_chat(self, messages, temperature=0.7, json_response=False, stop=None):
-        try:
-            if self.provider == "gemini":
-                return self._complete_gemini(messages, temperature, json_response, stop)
-            elif self.provider in ["openai", "local"]:
-                return self._complete_openai(messages, temperature, json_response, stop)
-            elif self.provider == "groq":
-                return self._complete_groq(messages, temperature, json_response, stop)
-        except Exception as e:
-            print(f"LLM ERROR ({self.provider}): {e}")
-            return None
+        if self.provider == "gemini":
+            return self._complete_gemini(messages, temperature, json_response, stop)
+        elif self.provider in ["openai", "local"]:
+            return self._complete_openai(messages, temperature, json_response, stop)
+        elif self.provider == "groq":
+            return self._complete_groq(messages, temperature, json_response, stop)
+        else:
+             raise ValueError(f"Unknown provider: {self.provider}")
 
     def _complete_openai(self, messages, temperature, json_response, stop):
         kwargs = {

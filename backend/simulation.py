@@ -16,10 +16,19 @@ class ConversationSimulator:
         console.print(f"[bold green]Starting Simulation[/bold green]")
         console.print(f"Defaulter Persona: {self.defaulter.persona.name} ({self.defaulter.persona.personality_traits})")
         
+        if not self.agent:
+             console.print("[bold red]SYSTEM ERROR: Agent is None[/bold red]")
+             return []
+
         # Initial greeting from Agent
-        agent_msg = self.agent.respond() # Start conversation
+        try:
+             agent_msg = self.agent.respond() # Start conversation
+        except Exception as e:
+             console.print(f"[bold red]SYSTEM ERROR in agent.respond(): {e}[/bold red]")
+             agent_msg = None
+
         if not agent_msg:
-            console.print("[bold red]Agent failed to generate greeting.[/bold red]")
+            console.print("[bold red]Agent failed to generate greeting (Empty response).[/bold red]")
             return self.logs
         
         self.logs.append({"role": "agent", "content": agent_msg})

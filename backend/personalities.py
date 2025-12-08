@@ -1,7 +1,9 @@
 from pydantic import BaseModel, Field
-from typing import List
 import json
 from llm_client import LLMClient
+from rich.console import Console
+
+console = Console()
 
 class Persona(BaseModel):
     name: str = Field(..., description="Name of the persona")
@@ -29,6 +31,7 @@ class DefaulterGenerator:
         self.llm = llm_client
 
     def generate_persona(self) -> Persona:
+        console.print("[bold cyan]Generating Persona...[/bold cyan]")
         prompt = """Generate a realistic persona for a customer who has defaulted on a loan.
 The persona should be challenging but realistic for a debt collection voice agent to handle.
 
@@ -43,17 +46,20 @@ Input Schema:
 }
 Ensure all fields are simple strings, not objects.
 """
-        
-        response_text = self.llm.complete_chat([
-            {"role": "system", "content": "You are a creative writer generating personas for training. Output valid flat JSON only."},
-            {"role": "user", "content": prompt}
-        ], json_response=True)
-        
         try:
+            console.print("[dim]Calling LLM for persona...[/dim]")
+            response_text = self.llm.complete_chat([
+                {"role": "system", "content": "You are a creative writer generating personas for training. Output valid flat JSON only."},
+                {"role": "user", "content": prompt}
+            ], json_response=True)
+            console.print(f"[dim]LLM Response received (Length: {len(str(response_text))})[/dim]")
+            
             data = json.loads(response_text)
-            return Persona(**data)
+            persona = Persona(**data)
+            console.print(f"[green]Persona Generated:[/green] {persona.name}")
+            return persona
         except Exception as e:
-            print(f"Failed to parse persona: {e}")
+            console.print(f"[bold red]Persona Gen Error:[/bold red] {e}")
             # Fallback
             return Persona(
                 name="John Doe", 

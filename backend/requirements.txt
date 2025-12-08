@@ -1,0 +1,10 @@
+fastapi
+uvicorn[standard]
+websockets
+openai
+groq
+google-generativeai
+python-dotenv
+rich
+colorama
+pydantic

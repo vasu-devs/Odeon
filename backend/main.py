@@ -115,7 +115,12 @@ def run_simulation_loop(max_cycles: int, batch_size: int = 5, pass_threshold: fl
             table = Table(title=f"Result: {persona.name}")
             table.add_column("Metric", style="cyan")
             table.add_column("Score", style="magenta")
+            
+            table.add_row("Repetition", str(result.metrics.repetition))
+            table.add_row("Negotiation", str(result.metrics.negotiation))
+            table.add_row("Empathy", str(result.metrics.empathy))
             table.add_row("Overall", str(result.overall_rating))
+            
             console.print(table)
             console.print(f"[bold]Feedback:[/bold] {result.feedback}")
             
