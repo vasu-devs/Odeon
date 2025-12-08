@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import Sidebar, { type Config } from './Sidebar';
 import LogTerminal from './LogTerminal';
 import { type ScenarioResult } from './ScenarioCard';
@@ -32,6 +32,7 @@ Be professional but firm.`,
     const [results, setResults] = useState<ScenarioResult[]>([]);
     const [optimizationHistory, setOptimizationHistory] = useState<OptimizationEntry[]>([]);
     const [isRunning, setIsRunning] = useState(false);
+    const wsRef = useRef<WebSocket | null>(null);
 
     // Stats
     const passRate = results.length > 0
@@ -39,13 +40,28 @@ Be professional but firm.`,
         : 0;
     const cycleAvg = results.length > 0 ? results[results.length - 1].cycle : 0;
 
+    const stopSimulation = () => {
+        if (wsRef.current) {
+            wsRef.current.close();
+            setLogs(prev => [...prev, "Simulation Stopped by User."]);
+            setIsRunning(false);
+            wsRef.current = null;
+        }
+    };
+
     const startSimulation = () => {
+        // Close existing if any
+        if (wsRef.current) {
+            wsRef.current.close();
+        }
+
         setIsRunning(true);
         setLogs([]);
         setResults([]);
         setOptimizationHistory([]);
 
         const ws = new WebSocket('ws://localhost:8000/ws/simulate');
+        wsRef.current = ws;
 
         ws.onopen = () => {
             ws.send(JSON.stringify(config));
@@ -58,6 +74,7 @@ Be professional but firm.`,
                 setLogs(prev => [...prev, data.message]);
                 if (data.message.includes("Optimization Complete")) {
                     setIsRunning(false);
+                    wsRef.current = null;
                 }
             } else if (data.type === 'result') {
                 setResults(prev => [...prev, {
@@ -77,19 +94,17 @@ Be professional but firm.`,
                     new_prompt: data.new_prompt,
                     reasoning: data.reasoning
                 }]);
-                // Update config with new prompt automatically? 
-                // Maybe just visually for now.
-                // Actually the backend updates the agent, but we should reflect it in the UI if possible.
-                // setConfig(c => ({ ...c, base_prompt: data.new_prompt }));
             } else if (data.type === 'error') {
                 setLogs(prev => [...prev, `ERROR: ${data.message}`]);
                 setIsRunning(false);
                 ws.close();
+                wsRef.current = null;
             }
         };
 
         ws.onclose = () => {
             setIsRunning(false);
+            wsRef.current = null;
         };
     };
 
@@ -103,6 +118,7 @@ Be professional but firm.`,
                 config={config}
                 setConfig={setConfig}
                 onStart={startSimulation}
+                onStop={stopSimulation}
                 isRunning={isRunning}
                 onHistory={() => setViewMode('history')}
             />

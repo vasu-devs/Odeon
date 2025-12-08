@@ -14,11 +14,12 @@ export interface SidebarProps {
     config: Config;
     setConfig: React.Dispatch<React.SetStateAction<Config>>;
     onStart: () => void;
+    onStop: () => void;
     isRunning: boolean;
     onHistory: () => void;
 }
 
-export default function Sidebar({ config, setConfig, onStart, isRunning, onHistory }: SidebarProps) {
+export default function Sidebar({ config, setConfig, onStart, onStop, isRunning, onHistory }: SidebarProps) {
 
     const handleChange = (field: keyof Config, value: any) => {
         setConfig(prev => ({ ...prev, [field]: value }));
@@ -138,16 +139,15 @@ export default function Sidebar({ config, setConfig, onStart, isRunning, onHisto
 
             <div className="p-6 border-t border-zinc-200/50 bg-white/50 backdrop-blur-sm">
                 <button
-                    onClick={onStart}
-                    disabled={isRunning}
+                    onClick={isRunning ? onStop : onStart}
                     className={`w-full py-3 rounded-xl font-semibold flex items-center justify-center gap-2 transition-all shadow-sm hover:shadow-md active:scale-95 ${isRunning
-                        ? 'bg-zinc-100 text-zinc-400 cursor-not-allowed border border-zinc-200'
+                        ? 'bg-red-500 text-white hover:bg-red-600 border border-red-400 animate-pulse'
                         : 'bg-zinc-900 text-white hover:bg-black'
                         }`}
                 >
                     {isRunning ? (
                         <>
-                            <Activity className="animate-spin" size={16} /> <span className="text-sm">Optimizing...</span>
+                            <Activity className="animate-spin" size={16} /> <span className="text-sm">Stop Optimization</span>
                         </>
                     ) : (
                         <>

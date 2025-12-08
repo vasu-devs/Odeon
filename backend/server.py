@@ -92,10 +92,7 @@ async def websocket_endpoint(websocket: WebSocket):
             "optimizer": agent_client
         }
         
-        agent = DebtCollectionAgent(clients["agent"])
-        # Explicitly set the prompt provided by user (no fallback if empty string provided, intended behavior)
-        if config.base_prompt:
-             agent.update_prompt(config.base_prompt)
+        agent = DebtCollectionAgent(clients["agent"], system_prompt=config.base_prompt)
         
         generator = DefaulterGenerator(clients["generator"])
         evaluator = Evaluator(clients["evaluator"])
@@ -125,6 +122,9 @@ async def websocket_endpoint(websocket: WebSocket):
         # Tracking for history
         run_id = datetime.now().strftime("%Y%m%d%H%M%S")
 
+        # Start with the initial prompt (wrapped by Agent)
+        current_prompt = agent.raw_system_prompt
+
         for cycle in range(1, max_cycles + 1):
             await websocket.send_json({"type": "log", "message": f"--- Cycle {cycle}/{max_cycles} ---"})
             
@@ -138,6 +138,8 @@ async def websocket_endpoint(websocket: WebSocket):
                 persona = await asyncio.to_thread(generator.generate_persona)
                 defaulter = DefaulterAgent(persona, clients["generator"])
                 
+                # Reset agent with key details, but KEEP the evolved prompt
+                # Note: agent.reset() uses agent.raw_system_prompt, which we update below
                 agent.reset(defaulter_name=persona.name)
                 current_prompt = agent.raw_system_prompt
                 
