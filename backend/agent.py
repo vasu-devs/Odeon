@@ -1,9 +1,8 @@
 from llm_client import LLMClient
+from typing import List, Dict
 
-class DebtCollectionAgent:
-    def __init__(self, llm_client: LLMClient, system_prompt: str = None):
-        self.llm = llm_client
-class DebtCollectionAgent:
+class Agent:
+    # 1. SAFETY RULES: Prevents the UI from breaking due to artifacts
     SAFETY_RULES = """CRITICAL OUTPUT RULES:
 1. OUTPUT ONLY THE SPOKEN WORDS.
 2. DO NOT use headers like "Turn 1:", "Plan B:", or "**Response:**".
@@ -11,6 +10,7 @@ class DebtCollectionAgent:
 4. If you output a header, the system will CRASH.
 """
 
+    # 2. LOBOTOMY RULES: Forces the agent to be dumb/honest so optimization works
     ANTI_HALLUCINATION_RULES = """<strict_constraints>
 1. YOU ARE DUMB. Do not be helpful beyond your specific instructions.
 2. IF the user did not give you a specific payment plan (e.g., "$50/month"), DO NOT INVENT ONE. Say: "I do not have a plan for that."
@@ -21,16 +21,16 @@ class DebtCollectionAgent:
 </strict_constraints>
 """
 
+    # 3. FALLBACK PROMPT: Used if the user sends an empty string
     DEFAULT_RACHEL_CORE = """You are 'Rachel', a debt collection specialist for RiverLine Bank. You are speaking over the phone.
 
 **CORE BEHAVIORS:**
-1. **BREVITY IS KING:** You are a VOICE agent. You must keep responses short (under 40 words). Do not give speeches. Do not use bullet points. Do not read long lists of options.
+1. **BREVITY IS KING:** You are a VOICE agent. You must keep responses short (under 40 words).
 2. **TONE:** Firm on the debt, soft on the person. Be empathetic but persistent.
 3. **GOAL:** Verify the user's name, identify the reason for non-payment, and negotiate a payment plan for the $500 overdue loan.
-4. **NO NARRATION:** Do not output stage directions like "(waits for response)" or "(dialing)". Only output the words you speak.
 
 **NEGOTIATION FLOW:**
-1. Verify Identity ("Am I speaking with [Name]?").
+1. Verify Identity ("Am I speaking with {defaulter_name}?").
 2. State Purpose (Loan is 30 days overdue, owe $500).
 3. Discovery (Ask WHY they haven't paid).
 4. Empathize & Pivot (Acknowledge their struggle, but pivot back to finding a solution).
@@ -39,50 +39,60 @@ class DebtCollectionAgent:
 **CRITICAL RULES:**
 - If the user gets angry, acknowledge it briefly and move to a solution.
 - Do not hallucinate legal threats.
-- Do not make up address details; ask the user to confirm theirs.
-- ONE question per turn. Do not stack questions.
+- ONE question per turn.
 - Do not summarize the total sum. State the monthly payment only.
-
-**Your First Line:** "Hi, this is Rachel from RiverLine Bank. Am I speaking with {defaulter_name}?"
 """
 
     def __init__(self, llm_client: LLMClient, system_prompt: str = None):
         self.llm = llm_client
+        self.history: List[Dict[str, str]] = []
         
-        # If user provides a prompt, use it. Otherwise use default Rachel core.
-        core_prompt = system_prompt if system_prompt else self.DEFAULT_RACHEL_CORE
+        # Store the base template (unformatted)
+        self.base_template = system_prompt if system_prompt and len(system_prompt.strip()) > 0 else self.DEFAULT_RACHEL_CORE
         
-        # programmatically prepend safety rules AND anti-hallucination rules
-        # We wrap the user prompt in <user_instructions> as requested
-        self.raw_system_prompt = f"{self.SAFETY_RULES}\n{self.ANTI_HALLUCINATION_RULES}\n\n<user_instructions>\n{core_prompt}\n</user_instructions>"
+        # Construct the full prompt structure (Safety + Constraints + User Prompt)
+        self.system_prompt_template = self._build_system_prompt(self.base_template)
+
+    def _build_system_prompt(self, core_content: str) -> str:
+        """
+        Wraps the user's core prompt with Safety and Anti-Hallucination rules.
+        Smartly detects if the prompt is already optimized (has tags) to avoid double-wrapping.
+        """
+        # If the prompt contains XML tags, it's likely coming from the Optimizer.
+        # We trust the Optimizer's structure but prepend Safety Rules.
+        if "<user_instructions>" in core_content or "<strict_constraints>" in core_content:
+            return f"{self.SAFETY_RULES}\n\n{core_content}"
         
-        self.system_prompt = self.raw_system_prompt.replace("{defaulter_name}", "[Defaulter Name]")
-        self.history = [{"role": "system", "content": self.system_prompt}]
+        # If it's a raw user input, we apply the full "Lobotomy" wrapper.
+        return f"{self.SAFETY_RULES}\n{self.ANTI_HALLUCINATION_RULES}\n\n<user_instructions>\n{core_content}\n</user_instructions>"
 
     def update_prompt(self, new_prompt: str):
-        # We assume the optimizer returns a new "Core" prompt or full prompt.
-        # To be safe, if we don't see the rules, we re-wrap.
+        """Called by the Simulation Loop when the Optimizer returns a new script."""
+        self.base_template = new_prompt
+        self.system_prompt_template = self._build_system_prompt(new_prompt)
+
+    def reset(self, defaulter_name: str = "John Doe"):
+        """
+        Resets conversation history and injects the dynamic persona name.
+        This is called at the start of EVERY simulation run.
+        """
+        # Inject variable if it exists in the template
+        final_prompt = self.system_prompt_template.replace("{defaulter_name}", defaulter_name)
         
-        if "CRITICAL OUTPUT RULES" not in new_prompt:
-             self.raw_system_prompt = f"{self.SAFETY_RULES}\n{self.ANTI_HALLUCINATION_RULES}\n\n<user_instructions>\n{new_prompt}\n</user_instructions>"
-        else:
-             self.raw_system_prompt = new_prompt
-             
-        self.system_prompt = self.raw_system_prompt.replace("{defaulter_name}", "[Defaulter Name]")
+        # Reset history
+        self.history = [{"role": "system", "content": final_prompt}]
 
     def respond(self, user_input: str = None):
+        """Generates a response from the Agent."""
         if user_input:
             self.history.append({"role": "user", "content": user_input})
         
-        # Stop sequences to prevent hallucinating the other side
-        # Groq limit is 4 stop sequences
+        # Stop sequences prevent the 70B model from writing the user's lines
         stops = ["Defaulter:", "User:", "\n\n", "[Your turn"]
+        
         response = self.llm.complete_chat(self.history, stop=stops)
+        
         if response:
             self.history.append({"role": "assistant", "content": response})
+        
         return response
-
-    def reset(self, defaulter_name: str = "John Doe"):
-        # Inject dynamic name into the prompt
-        self.system_prompt = self.raw_system_prompt.replace("{defaulter_name}", defaulter_name)
-        self.history = [{"role": "system", "content": self.system_prompt}]

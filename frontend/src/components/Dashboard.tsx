@@ -25,7 +25,12 @@ Your goal is to collect a $500 debt.
 Be professional but firm.`,
         max_cycles: 5,
         batch_size: 5,
-        threshold: 0.8
+        thresholds: {
+            repetition: 8,
+            negotiation: 8,
+            empathy: 8,
+            overall: 8
+        }
     });
 
     const [logs, setLogs] = useState<string[]>([]);

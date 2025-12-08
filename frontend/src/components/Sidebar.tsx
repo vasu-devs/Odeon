@@ -7,7 +7,12 @@ export interface Config {
     base_prompt: string;
     max_cycles: number;
     batch_size: number;
-    threshold: number;
+    thresholds: {
+        repetition: number;
+        negotiation: number;
+        empathy: number;
+        overall: number;
+    };
 }
 
 export interface SidebarProps {
@@ -23,6 +28,16 @@ export default function Sidebar({ config, setConfig, onStart, onStop, isRunning,
 
     const handleChange = (field: keyof Config, value: any) => {
         setConfig(prev => ({ ...prev, [field]: value }));
+    };
+
+    const handleThresholdChange = (metric: keyof Config['thresholds'], value: number) => {
+        setConfig(prev => ({
+            ...prev,
+            thresholds: {
+                ...prev.thresholds,
+                [metric]: value
+            }
+        }));
     };
 
     return (
@@ -107,18 +122,68 @@ export default function Sidebar({ config, setConfig, onStart, onStop, isRunning,
                         </div>
                     </div>
 
-                    <div className="space-y-1.5">
-                        <div className="flex justify-between items-center">
-                            <label className="text-xs font-medium text-zinc-600">Success Threshold</label>
-                            <span className="text-xs font-mono bg-zinc-100 px-1.5 py-0.5 rounded text-zinc-600 border border-zinc-200">{config.threshold}</span>
+                    <div className="space-y-4 pt-2">
+                        <div className="space-y-1.5">
+                            <div className="flex justify-between items-center">
+                                <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Strict Metric Targets (1-10)</label>
+                            </div>
                         </div>
-                        <input
-                            type="range"
-                            min="0" max="1" step="0.05"
-                            value={config.threshold}
-                            onChange={(e) => handleChange('threshold', parseFloat(e.target.value))}
-                            className="w-full accent-black h-1 bg-zinc-200 rounded-lg appearance-none cursor-pointer"
-                        />
+
+                        <div className="space-y-1.5">
+                            <div className="flex justify-between items-center">
+                                <label className="text-xs font-medium text-zinc-600">Overall Score</label>
+                                <span className="text-xs font-mono bg-zinc-100 px-1.5 py-0.5 rounded text-zinc-600 border border-zinc-200">{config.thresholds.overall}</span>
+                            </div>
+                            <input
+                                type="range"
+                                min="1" max="10" step="0.5"
+                                value={config.thresholds.overall}
+                                onChange={(e) => handleThresholdChange('overall', parseFloat(e.target.value))}
+                                className="w-full accent-black h-1 bg-zinc-200 rounded-lg appearance-none cursor-pointer"
+                            />
+                        </div>
+
+                        <div className="space-y-1.5">
+                            <div className="flex justify-between items-center">
+                                <label className="text-xs font-medium text-zinc-600">Repetition</label>
+                                <span className="text-xs font-mono bg-zinc-100 px-1.5 py-0.5 rounded text-zinc-600 border border-zinc-200">{config.thresholds.repetition}</span>
+                            </div>
+                            <input
+                                type="range"
+                                min="1" max="10" step="1"
+                                value={config.thresholds.repetition}
+                                onChange={(e) => handleThresholdChange('repetition', parseFloat(e.target.value))}
+                                className="w-full accent-blue-500 h-1 bg-zinc-200 rounded-lg appearance-none cursor-pointer"
+                            />
+                        </div>
+
+                        <div className="space-y-1.5">
+                            <div className="flex justify-between items-center">
+                                <label className="text-xs font-medium text-zinc-600">Negotiation</label>
+                                <span className="text-xs font-mono bg-zinc-100 px-1.5 py-0.5 rounded text-zinc-600 border border-zinc-200">{config.thresholds.negotiation}</span>
+                            </div>
+                            <input
+                                type="range"
+                                min="1" max="10" step="1"
+                                value={config.thresholds.negotiation}
+                                onChange={(e) => handleThresholdChange('negotiation', parseFloat(e.target.value))}
+                                className="w-full accent-green-500 h-1 bg-zinc-200 rounded-lg appearance-none cursor-pointer"
+                            />
+                        </div>
+
+                        <div className="space-y-1.5">
+                            <div className="flex justify-between items-center">
+                                <label className="text-xs font-medium text-zinc-600">Empathy</label>
+                                <span className="text-xs font-mono bg-zinc-100 px-1.5 py-0.5 rounded text-zinc-600 border border-zinc-200">{config.thresholds.empathy}</span>
+                            </div>
+                            <input
+                                type="range"
+                                min="1" max="10" step="1"
+                                value={config.thresholds.empathy}
+                                onChange={(e) => handleThresholdChange('empathy', parseFloat(e.target.value))}
+                                className="w-full accent-pink-500 h-1 bg-zinc-200 rounded-lg appearance-none cursor-pointer"
+                            />
+                        </div>
                     </div>
                 </div>
 

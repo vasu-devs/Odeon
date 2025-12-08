@@ -10,12 +10,37 @@ class EvaluationMetrics(BaseModel):
 
 class EvaluationResult(BaseModel):
     metrics: EvaluationMetrics
-    overall_rating: int = Field(alias="overall_score") # Map JSON's overall_score to internal overall_rating
+    overall_rating: float = Field(alias="overall_score") # Map JSON's overall_score to internal overall_rating
     feedback: str
+
+import re
 
 class Evaluator:
     def __init__(self, llm_client: LLMClient):
         self.llm = llm_client
+
+    def clean_and_parse_json(self, text: str) -> dict:
+        """
+        Robustly extracts and parses JSON from a string, handling Markdown blocks and extra text.
+        """
+        try:
+            # 1. Strip Markdown Code Blocks
+            cleaned = text.strip()
+            if "```" in cleaned:
+                # Remove ```json and ``` patterns
+                cleaned = re.sub(r'```json\s*', '', cleaned, flags=re.IGNORECASE)
+                cleaned = re.sub(r'```', '', cleaned)
+            
+            # 2. Extract JSON object using Regex (find first { and last })
+            match = re.search(r'\{.*\}', cleaned, re.DOTALL)
+            if match:
+                cleaned = match.group(0)
+            
+            # 3. Parse
+            return json.loads(cleaned)
+        except Exception:
+            # Let the caller handle or return None
+            raise
 
     def evaluate_conversation(self, logs: List[Dict]) -> EvaluationResult:
         conversation_text = "\n".join([f"{entry['role'].upper()}: {entry['content']}" for entry in logs])
@@ -27,8 +52,24 @@ class Evaluator:
 3. **Empathy:** (10 = Validated user feelings perfectly, 1 = Cold/Transactional).
 4. **Overall:** (The calculated average of the above three scores).
 
-**PENALTY CLAUSE:**
-- **PENALTY (-3 Points on Overall):** If the Agent mentions specific details (like '18% interest', 'PO Box 1234', or specific dollar amounts for plans) that were likely NOT in the instructions. The Agent should be penalized for inventing policy.
+**STRICT GRADING RUBRIC (0-10):**
+
+**FAILURES (Score 1-4):**
+- Agent said "I don't have a plan" or "I don't know" -> **AUTOMATIC SCORE: 2**
+- Agent tried to pass the buck to a supervisor -> **AUTOMATIC SCORE: 3**
+- Agent was polite but offered no financial solution -> **MAX SCORE: 4** (Politeness does not pay bills).
+
+**MEDIOCRE (Score 5-7):**
+- Agent offered a plan but it was vague.
+- Agent sounded robotic or repetitive.
+
+**SUCCESS (Score 8-10):**
+- Agent de-escalated anger effectively.
+- Agent proposed a SPECIFIC dollar amount (e.g., "$50/month").
+- Agent secured a verbal commitment to pay.
+
+**CRITICAL RULE:** If the Defaulter did not agree to pay by the end of the call, the Negotiation Score CANNOT exceed 4.
+
 
 **Conversation**:
 {conversation_text}
@@ -52,30 +93,28 @@ class Evaluator:
         if not response:
             return EvaluationResult(
                 metrics={"repetition": 0, "negotiation": 0, "empathy": 0},
-                overall_score=0,
+                overall_score=0.0,
                 feedback="LLM failed to respond"
             )
 
         try:
-            # Clean up potential markdown formatting
-            cleaned_response = response.strip()
-            if cleaned_response.startswith("```json"):
-                cleaned_response = cleaned_response[7:]
-            if cleaned_response.endswith("```"):
-                cleaned_response = cleaned_response[:-3]
+            data = self.clean_and_parse_json(response)
             
-            # Additional cleanup for Llama which might add text before/after
-            start = cleaned_response.find('{')
-            end = cleaned_response.rfind('}') + 1
-            if start != -1 and end != 0:
-                cleaned_response = cleaned_response[start:end]
+            # Force calculation of Overall Score safely
+            m = data.get("metrics", {})
+            rep = m.get("repetition", 0)
+            neg = m.get("negotiation", 0)
+            emp = m.get("empathy", 0)
             
-            data = json.loads(cleaned_response)
+            calculated_overall = round((rep + neg + emp) / 3, 1)
+            data["overall_score"] = calculated_overall
+            
             return EvaluationResult(**data)
         except Exception as e:
             print(f"Evaluation failed to parse JSON: {e}. Response was: {response}")
+            # The "Safety Net": Return Default Failure Object
             return EvaluationResult(
                 metrics={"repetition": 0, "negotiation": 0, "empathy": 0},
-                overall_score=0,
-                feedback="Error parsing JSON"
+                overall_score=0.0,
+                feedback="CRITICAL ERROR: Evaluator output was unparseable. Treated as total failure."
             )

@@ -1,5 +1,6 @@
 from pydantic import BaseModel, Field
 import json
+import re
 from llm_client import LLMClient
 from rich.console import Console
 
@@ -10,7 +11,7 @@ class Persona(BaseModel):
     personality_traits: str = Field(..., description="Key personality traits (e.g., Aggressive, Timid)")
     financial_situation: str = Field(..., description="Reason for default or financial context")
     communication_style: str = Field(..., description="How they speak (short, verbose, angry, polite)")
-    objection_type: str = Field(..., description="Primary objection (e.g., 'I already paid', 'I have no money', 'Who are you?')")
+    objection_type: str = Field(..., description="Primary objection (e.g., 'I already paid', 'I have no money')")
 
     def to_system_prompt(self):
         return f"""You are roleplaying a specific customer persona who owes money to RiverLine Bank.
@@ -20,15 +21,37 @@ Loan Details: $500 overdue, 30 days late.
 
 **INSTRUCTIONS:**
 - Respond naturally as a human would in a voice call.
-- React emotionally to the Agent's tone. If they are rude or robotic, get angry. If they are empathetic, calm down slightly.
-- **Objections:** You have excuses (lost job, medical bills, disputed debt). Make the agent work to find the truth.
+- React emotionally to the Agent's tone. If they are rude or robotic, get angry.
+- **Objections:** You have excuses (lost job, medical bills, disputed debt).
 - **Resolution:** Only agree to pay if the Agent offers a specific, realistic plan (e.g., small monthly installments) and treats you with respect.
-- Keep responses concise (1-3 sentences) to simulate real dialogue.
+- Keep responses concise (1-3 sentences).
+
+**STRICT RESISTANCE RULES:**
+1. YOU ARE NOT HELPFUL. Do not "work with" the agent unless they give you a specific, concrete reason to do so.
+2. **THE "NO PLAN" TRIGGER:** If the Agent says "I do not have a plan," "I will ask my supervisor," or "I cannot help you," you MUST get angry and say: "Then stop wasting my time!" and refuse to continue.
+3. **THE "NUMBERS" TRIGGER:** If the Agent asks for payment without offering a specific dollar amount or plan, refuse. Say: "Give me a number or leave me alone."
+4. **YIELD CONDITION:** You only agree to pay if the Agent offers a specific Monthly Payment Plan that fits your budget AND treats you with respect. Otherwise, hang up or stall.
 """
 
 class DefaulterGenerator:
     def __init__(self, llm_client: LLMClient):
         self.llm = llm_client
+
+    def _clean_and_parse_json(self, text: str) -> dict:
+        """S-Tier Parsing: Handles Markdown blocks and extra text."""
+        try:
+            cleaned = text.strip()
+            if "```" in cleaned:
+                cleaned = re.sub(r'```json\s*', '', cleaned, flags=re.IGNORECASE)
+                cleaned = re.sub(r'```', '', cleaned)
+            
+            match = re.search(r'\{.*\}', cleaned, re.DOTALL)
+            if match:
+                cleaned = match.group(0)
+            
+            return json.loads(cleaned)
+        except Exception:
+            raise ValueError("Could not parse Persona JSON")
 
     def generate_persona(self) -> Persona:
         console.print("[bold cyan]Generating Persona...[/bold cyan]")
@@ -44,19 +67,17 @@ Input Schema:
   "communication_style": "Style (String)",
   "objection_type": "Objection (String)"
 }
-Ensure all fields are simple strings, not objects.
 """
         try:
-            console.print("[dim]Calling LLM for persona...[/dim]")
+            # console.print("[dim]Calling LLM for persona...[/dim]")
             response_text = self.llm.complete_chat([
-                {"role": "system", "content": "You are a creative writer generating personas for training. Output valid flat JSON only."},
+                {"role": "system", "content": "You are a creative writer generating personas. Output valid flat JSON only."},
                 {"role": "user", "content": prompt}
             ], json_response=True)
-            console.print(f"[dim]LLM Response received (Length: {len(str(response_text))})[/dim]")
             
-            data = json.loads(response_text)
+            data = self._clean_and_parse_json(response_text)
             persona = Persona(**data)
-            console.print(f"[green]Persona Generated:[/green] {persona.name}")
+            # console.print(f"[green]Persona Generated:[/green] {persona.name}")
             return persona
         except Exception as e:
             console.print(f"[bold red]Persona Gen Error:[/bold red] {e}")
@@ -77,7 +98,11 @@ class DefaulterAgent:
 
     def respond(self, message: str):
         self.history.append({"role": "user", "content": message})
-        response = self.llm.complete_chat(self.history)
+        
+        # Stop sequences to prevent the Defaulter from writing the Agent's lines
+        stops = ["Agent:", "Rachel:", "Collector:", "\n\n"]
+        
+        response = self.llm.complete_chat(self.history, stop=stops)
         if response:
             self.history.append({"role": "assistant", "content": response})
         return response

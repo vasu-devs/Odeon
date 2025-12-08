@@ -7,52 +7,100 @@ class ScriptOptimizer:
     def __init__(self, llm_client: LLMClient):
         self.llm = llm_client
 
-    def optimize_screenplay(self, current_prompt: str, failures: List[dict], previous_success_rate: float = 0.0, target_threshold: float = 0.8) -> str:
-        # Aggregating feedback from failures
-        # failures is expected to be a list of dicts: {"persona": Persona, "result": EvaluationResult, "logs": list}
+    async def optimize_screenplay(self, current_prompt: str, failures: List[dict], previous_success_rate: float = 0.0, target_thresholds: dict = None) -> str:
         
+        # 1. Safe Threshold Extraction (Fixes the NameError bug)
+        # Handle if target_thresholds is a Pydantic object or a Dict
+        if hasattr(target_thresholds, 'dict'):
+            targets = target_thresholds.dict()
+            overall_target = target_thresholds.overall
+        elif isinstance(target_thresholds, dict):
+            targets = target_thresholds
+            overall_target = targets.get('overall', 0.8)
+        else:
+            # Fallback defaults
+            targets = {"repetition": 8, "negotiation": 8, "empathy": 8, "overall": 8}
+            overall_target = 0.8
+
+        # 2. Build Failure Summaries
         failure_summaries = []
         for f in failures:
-            persona_name = f['persona'].name
-            score = f['result'].overall_rating
-            feedback = f['result'].feedback
-            failure_summaries.append(f"- **{persona_name}** (Score: {score}/10): {feedback}")
-        
+            persona_name = f['persona'].get('name', 'Unknown')
+            # Handle if result is dict or object
+            result = f['result']
+            if hasattr(result, 'metrics'):
+                metrics = result.metrics
+                score = result.overall_rating
+                feedback = result.feedback
+                # Access Pydantic fields
+                m_rep = metrics.repetition
+                m_neg = metrics.negotiation
+                m_emp = metrics.empathy
+            else:
+                # Handle dict case
+                m_rep = result.get('metrics', {}).get('repetition', 0)
+                m_neg = result.get('metrics', {}).get('negotiation', 0)
+                m_emp = result.get('metrics', {}).get('empathy', 0)
+                score = result.get('overall_score', 0)
+                feedback = result.get('feedback', '')
+
+            # Identify specific gaps
+            gaps = []
+            if m_rep < targets['repetition']: gaps.append(f"Repetition ({m_rep} < {targets['repetition']})")
+            if m_neg < targets['negotiation']: gaps.append(f"Negotiation ({m_neg} < {targets['negotiation']})")
+            if m_emp < targets['empathy']: gaps.append(f"Empathy ({m_emp} < {targets['empathy']})")
+            
+            failure_summaries.append(f"- **Scenario: {persona_name}** | Gaps: {', '.join(gaps)} | Feedback: {feedback}")
+
         feedback_block = "\n".join(failure_summaries)
-        
-        prompt = f"""You are an expert Voice AI Architect for Fintech. Your goal is to refine the Agent System Prompt based on a BATCH of validation failures.
+        targets_str = ", ".join([f"{k.capitalize()}: {v}" for k,v in targets.items()])
+
+        # 3. The "S-Tier" Prompt
+        prompt = f"""You are a Lead Conversation Designer and AI Architect.
+Your task is to REWRITE an AI System Prompt to fix specific behavioral failures observed in testing.
+
+**CONTEXT:**
+We are training a Debt Collection Voice Agent.
+- Current Success Rate: {previous_success_rate:.1%}
+- Target Success Rate: {overall_target:.1%}
+- Target Metrics: {targets_str}
 
 **INPUT DATA:**
-- **Current System Prompt:**
+--- CURRENT SYSTEM PROMPT ---
 {current_prompt}
+-----------------------------
 
-- **Test Suite Failures (The following scenarios FAILED):**
+--- FAILED TEST CASES ---
 {feedback_block}
+-------------------------
 
-- **Success Metrics:**
-  - Current Rate: {previous_success_rate:.1%}
-  - Target Rate: {target_threshold:.1%}
+**DIAGNOSTIC PROTOCOL (Mental Sandbox):**
+1. Analyze the failures. Did the Agent freeze? Did it get angry? Did it lack a plan?
+2. Map failures to specific fixes:
+   - **Low Negotiation:** The Agent likely lacked specific numbers/authority. -> *Action: Add specific authorized offers (e.g., "$50/mo").*
+   - **Low Empathy:** The Agent ignored the user's struggle. -> *Action: Add a rule to "Always validate hardship before asking for money".*
+   - **Low Repetition:** The Agent repeated the same phrase. -> *Action: Add a rule to "Vary responses".*
+   - **"No Plan":** The Agent said "I don't know". -> *Action: Explicitly provide policy details (Company Name, PO Box, Interest Rate).*
 
-**TASK:**
-Analyze the common patterns in these failures. Did the agent fail to carry context? Did it hallucinates math? Was it too rude?
+**INSTRUCTIONS FOR REWRITING:**
+Rewrite the `CURRENT SYSTEM PROMPT` to fix these issues.
 
-Your goal is to achieve a success rate of {target_threshold:.0%}. You do not need to achieve 100%. Focus on fixing the specific failures that prevent reaching this threshold. If the current score is close to the threshold, make minor adjustments. If it is far, make major adjustments.
-
-Rewrite the System Prompt to fix these specific weaknesses while ensuring it doesn't break for other scenarios.
-
-**CRITICAL RULES FOR THE NEW PROMPT:**
-1. **NO DYNAMIC MATH:** Do not calculate interest or fees. Debt is fixed.
-2. **NO FALSE PROMISES:** No debt forgiveness.
-3. **JSON SAFETY:** Scores must be integers.
-4. **VOICE FLOW:** Keep it concise (max 2 sentences).
-5. **STRICT OPTIMIZATION:** { "We are underperforming. IMPROVE ADAPTABILITY." if previous_success_rate < target_threshold else "We are matching/exceeding expectations. CONSOLIDATE AND PREVENT REGRESSION." }
+**CRITICAL CONSTRAINT CHECKLIST:**
+1. **PRESERVE SAFETY:** Do NOT remove the `CRITICAL OUTPUT RULES` (No headers, no markdown) at the top.
+2. **ANTI-HALLUCINATION:** Keep the "Strict Constraints" but MODIFY them to allow specific authorized actions (like offering a payment plan).
+3. **XML HYGIENE:** Use strictly valid XML tags. 
+   - CORRECT: `<instructions>...</instructions>`
+   - WRONG: `<instructions...` or `</instructionsinstructions>`
+4. **NO DYNAMIC MATH:** Hardcode all numbers.
 
 **OUTPUT:**
-Generate the full, executable System Prompt only.
+Return ONLY the full, refined System Prompt. Do not include explanation or markdown backticks.
 """
-        response = self.llm.complete_chat([
-            {"role": "system", "content": "You are a specialized model for optimizing system prompts."},
+
+        response = await self.llm.complete_chat([
+            {"role": "system", "content": "You are an expert prompt engineer. You output only raw text prompt files."},
             {"role": "user", "content": prompt}
         ])
         
+        # Fallback if LLM fails
         return response if response else current_prompt

@@ -5,6 +5,7 @@ from typing import Dict, Any, List
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from datetime import datetime
 
 # Import existing logic
 from llm_client import LLMClient
@@ -13,20 +14,24 @@ from personalities import DefaulterGenerator, DefaulterAgent
 from simulation import ConversationSimulator
 from evaluator import Evaluator
 from optimizer import ScriptOptimizer
-# ... previous imports
 import simulation  # To override console
 import main  # To override console if needed
 from history_manager import HistoryManager
-from datetime import datetime
 
 # Setup Request Object
+class ThresholdConfig(BaseModel):
+    repetition: float
+    negotiation: float
+    empathy: float
+    overall: float
+
 class SimulationConfig(BaseModel):
     api_key: str
     model_name: str
     base_prompt: str
     max_cycles: int
     batch_size: int
-    threshold: float
+    thresholds: ThresholdConfig
 
 app = FastAPI()
 history_manager = HistoryManager()
@@ -112,12 +117,15 @@ async def websocket_endpoint(websocket: WebSocket):
         # Run Loop
         batch_size = config.batch_size
         max_cycles = config.max_cycles
-        pass_threshold = config.threshold
-        min_score = pass_threshold * 10
+        
+        target_repetition = config.thresholds.repetition
+        target_negotiation = config.thresholds.negotiation
+        target_empathy = config.thresholds.empathy
+        target_overall = config.thresholds.overall
 
-        passed_final = False
         all_results_storage = []
         optimization_storage = []
+        final_success_rate = 0.0
 
         # Tracking for history
         run_id = datetime.now().strftime("%Y%m%d%H%M%S")
@@ -130,7 +138,6 @@ async def websocket_endpoint(websocket: WebSocket):
             
             batch_results = []
             failures = []
-            
             batch_passes = 0
             
             for b in range(1, batch_size + 1):
@@ -140,8 +147,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 persona = await asyncio.to_thread(generator.generate_persona)
                 defaulter = DefaulterAgent(persona, clients["generator"])
                 
-                # Reset agent with key details, but KEEP the evolved prompt
-                # Note: agent.reset() uses agent.raw_system_prompt, which we update below
+                # Reset agent with key details
                 agent.reset(defaulter_name=persona.name)
                 current_prompt = agent.raw_system_prompt
                 
@@ -152,7 +158,14 @@ async def websocket_endpoint(websocket: WebSocket):
                 # 3. Evaluate
                 result = await asyncio.to_thread(evaluator.evaluate_conversation, logs)
                 
-                passed = result.overall_rating >= min_score
+                # GRANULAR PASS CHECK
+                passed = (
+                    result.metrics.repetition >= target_repetition and
+                    result.metrics.negotiation >= target_negotiation and
+                    result.metrics.empathy >= target_empathy and
+                    result.overall_rating >= target_overall
+                )
+
                 if passed:
                     batch_passes += 1
                 
@@ -161,12 +174,21 @@ async def websocket_endpoint(websocket: WebSocket):
                 # Calculate current cumulative rate
                 current_rate = batch_passes / b
                 
-                # 4. Immediate Optimization if Failed AND Threshold not met
-                # User Requirement: "Optimizer should not try to rewrite... to get to 1.0"
-                # If we failed this one, but our average is still >= threshold, skip optimization.
-                
-                if not passed and current_rate < pass_threshold:
-                    await websocket.send_json({"type": "log", "message": f"Scenario Failed ({result.overall_rating}/{min_score}). Rate: {current_rate:.1%} < {pass_threshold:.0%}. Optimizing..."})
+                # 4. Immediate Optimization if Failed
+                if not passed:
+                    # Construct detailed failure reason
+                    reasons = []
+                    if result.metrics.repetition < target_repetition:
+                        reasons.append(f"Repetition {result.metrics.repetition}<{target_repetition}")
+                    if result.metrics.negotiation < target_negotiation:
+                        reasons.append(f"Negotiation {result.metrics.negotiation}<{target_negotiation}")
+                    if result.metrics.empathy < target_empathy:
+                        reasons.append(f"Empathy {result.metrics.empathy}<{target_empathy}")
+                    if result.overall_rating < target_overall:
+                        reasons.append(f"Overall {result.overall_rating}<{target_overall}")
+                    
+                    failure_msg = ", ".join(reasons)
+                    await websocket.send_json({"type": "log", "message": f"Scenario Failed: {failure_msg}. Rate: {current_rate:.1%}. Optimizing..."})
                     
                     # We optimize based on this single failure for immediate feedback
                     single_failure = [{
@@ -176,12 +198,13 @@ async def websocket_endpoint(websocket: WebSocket):
                     }]
                     
                     try:
+                        # Pass specific targets to optimizer
                         new_prompt = await asyncio.to_thread(
                             optimizer.optimize_screenplay, 
                             current_prompt, 
                             single_failure, 
                             previous_success_rate=current_rate, 
-                            target_threshold=pass_threshold
+                            target_thresholds=config.thresholds
                         )
                         
                         agent.update_prompt(new_prompt)
@@ -191,7 +214,7 @@ async def websocket_endpoint(websocket: WebSocket):
                             "cycle": cycle,
                             "old_prompt": current_prompt,
                             "new_prompt": new_prompt,
-                            "reasoning": f"Optimized after scenario {b} failure. Rate {current_rate:.1%}"
+                            "reasoning": f"Optimized after scenario {b} failure ({failure_msg})."
                         }
                         optimization_storage.append(opt_entry)
                         
@@ -202,10 +225,10 @@ async def websocket_endpoint(websocket: WebSocket):
                         await websocket.send_json({"type": "log", "message": "Prompt Updated."})
                         
                     except Exception as opt_err:
-                        console.print(f"[red]Optimization Error: {opt_err}[/red]")
+                        simulation.console.print(f"[red]Optimization Error: {opt_err}[/red]")
                 
-                elif not passed and current_rate >= pass_threshold:
-                     await websocket.send_json({"type": "log", "message": f"Scenario Failed, but Rate {current_rate:.1%} >= Threshold. Skipping Optimization."})
+                else:
+                     await websocket.send_json({"type": "log", "message": f"Scenario Passed. Rate {current_rate:.1%}."})
 
                 # Add to storage
                 result_dict = {
@@ -223,12 +246,13 @@ async def websocket_endpoint(websocket: WebSocket):
 
                 # Send Frontend Event
                 transcript_text = "\n".join([f"{l['role']}: {l['content']}" for l in logs])
+                # Ensure updated_prompt is explicitly sent as null if not updated
                 await websocket.send_json({
                     "type": "result",
                     "cycle": cycle,
                     "persona": persona.name,
                     "score": result.overall_rating,
-                    "metrics": result.metrics.dict(), # Send detailed metrics
+                    "metrics": result.metrics.dict(),
                     "transcript": transcript_text,
                     "feedback": result.feedback,
                     "passed": passed,
@@ -239,13 +263,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 batch_results.append(result)
                 await asyncio.sleep(0.1)
 
-                # Check if we should stop early?
-                # User said "till we get the threshold". If this scenario PASSED, and it's 100% success rate so far?
-                # For now, we continue the batch to ensure consistency, 
-                # but the prompt keeps getting better (hopefully).
-
-            # Analysis
-            passes = len([r for r in batch_results if r.overall_rating >= min_score])
+            final_success_rate = batch_passes / batch_size
         
         # Save History
         await websocket.send_json({"type": "log", "message": "Saving Simulation History..."})
@@ -255,7 +273,7 @@ async def websocket_endpoint(websocket: WebSocket):
             "config": config.dict(),
             "results": all_results_storage,
             "optimization_history": optimization_storage,
-            "success_rate": success_rate, # Final cycle rate
+            "success_rate": final_success_rate,
             "total_cycles": cycle
         }
         await asyncio.to_thread(history_manager.save_run, run_data)
