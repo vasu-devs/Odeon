@@ -5,16 +5,35 @@
   line-height: 1.5;
   font-weight: 400;
 
+  /* Monochrome Palette */
+  --bg-primary: #F7F7F7;
+  --bg-component: #E0E0E0;
+  --text-primary: #333333;
+  --text-secondary: #AAAAAA;
+  --accent-black: #1a1a1a;
+
+  /* Neumorphic Shadows */
+  --shadow-drop: 6px 6px 12px #bebebe, -6px -6px 12px #ffffff;
+  --shadow-inner: inset 4px 4px 8px #bebebe, inset -4px -4px 8px #ffffff;
+  --shadow-pressed: inset 2px 2px 5px #bebebe, inset -2px -2px 5px #ffffff;
+
   color-scheme: light;
-  color: #18181b;
-  /* zinc-900 */
-  background-color: #fafafa;
-  /* zinc-50 */
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  display: block;
+  min-width: 320px;
+  min-height: 100vh;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
 }
 
 @keyframes fade-in-up {
@@ -33,31 +52,10 @@
   animation: fade-in-up 0.5s ease-out forwards;
 }
 
-.delay-100 {
-  animation-delay: 100ms;
-}
-
-.delay-200 {
-  animation-delay: 200ms;
-}
-
-.delay-300 {
-  animation-delay: 300ms;
-}
-
-body {
-  margin: 0;
-  display: block;
-  /* Fixed: was flex center which caused centering issues */
-  min-width: 320px;
-  min-height: 100vh;
-  background-color: #fafafa;
-}
-
-/* Custom Scrollbar - Light */
+/* Custom Scrollbar - Minimal Monochrome */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
@@ -65,12 +63,91 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #e4e4e7;
-  /* zinc-200 */
-  border-radius: 4px;
+  background: #d4d4d8;
+  border-radius: 99px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #d4d4d8;
-  /* zinc-300 */
+  background: #a1a1aa;
+}
+
+/* Neumorphic Utility Classes */
+.neu-card {
+  background: var(--bg-primary);
+  box-shadow: var(--shadow-drop);
+  border-radius: 20px;
+}
+
+.neu-btn {
+  background: var(--bg-primary);
+  box-shadow: var(--shadow-drop);
+  border-radius: 12px;
+  transition: all 0.4s ease-in-out;
+}
+
+.neu-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 8px 8px 16px #bebebe, -8px -8px 16px #ffffff;
+}
+
+.neu-btn:active {
+  transform: translateY(0);
+  box-shadow: var(--shadow-pressed);
+}
+
+.neu-btn.active {
+  background: var(--accent-black);
+  color: white;
+  box-shadow: var(--shadow-inner);
+}
+
+.neu-input {
+  background: var(--bg-primary);
+  box-shadow: var(--shadow-inner);
+  border-radius: 12px;
+  border: none;
+  transition: all 0.4s ease-in-out;
+}
+
+.neu-input:focus {
+  box-shadow: inset 6px 6px 12px #bebebe, inset -6px -6px 12px #ffffff;
+  outline: none;
+}
+
+.neu-track {
+  background: var(--bg-primary);
+  box-shadow: var(--shadow-inner);
+  border-radius: 9999px;
+}
+
+/* React Range input overrides */
+input[type=range] {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+}
+
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 16px;
+  width: 16px;
+  border-radius: 50%;
+  background: var(--accent-black);
+  cursor: pointer;
+  margin-top: -6px;
+  box-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+  transition: transform 0.2s;
+}
+
+input[type=range]::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+}
+
+input[type=range]::-webkit-slider-runnable-track {
+  width: 100%;
+  height: 4px;
+  cursor: pointer;
+  background: transparent;
+  border-radius: 2px;
 }

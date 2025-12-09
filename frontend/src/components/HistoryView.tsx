@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ArrowLeft, Trash2, Calendar } from 'lucide-react';
-import { GridPattern, MeshGradient } from './Backgrounds';
+import { IconArrowLeft, IconTrash, IconCalendar } from './Icons';
 import ScenarioCard from './ScenarioCard';
 
 interface HistoryItem {
@@ -31,27 +30,24 @@ export default function HistoryView({ onBack }: { onBack: () => void }) {
 
     if (selectedRun) {
         return (
-            <div className="flex flex-col h-screen bg-zinc-50 overflow-hidden relative font-sans text-zinc-900">
-                <GridPattern />
-                <MeshGradient />
-
-                <div className="p-6 z-10 flex items-center gap-4 border-b border-zinc-200/50 bg-white/50 backdrop-blur-sm">
-                    <button onClick={() => setSelectedRun(null)} className="p-2 hover:bg-zinc-100 rounded-lg transition-colors">
-                        <ArrowLeft size={20} />
+            <div className="flex flex-col h-screen bg-[#F7F7F7] overflow-hidden relative font-sans text-[#333333]">
+                <div className="p-6 z-10 flex items-center gap-4 border-b border-[#E0E0E0] bg-[#F7F7F7] shadow-[0_2px_4px_rgba(0,0,0,0.02)]">
+                    <button onClick={() => setSelectedRun(null)} className="p-3 neu-btn hover:text-[#000000] text-[#555555]">
+                        <IconArrowLeft size={20} />
                     </button>
                     <div>
-                        <h2 className="font-bold text-lg">Simulation Details</h2>
-                        <p className="text-xs text-zinc-500 font-mono">{new Date(selectedRun.timestamp).toLocaleString()}</p>
+                        <h2 className="font-bold text-lg text-[#333333]">Simulation Details</h2>
+                        <p className="text-xs text-[#AAAAAA] font-mono">{new Date(selectedRun.timestamp).toLocaleString()}</p>
                     </div>
                     <div className="ml-auto flex gap-4">
                         <div className="flex flex-col items-end">
-                            <span className="text-[10px] uppercase font-bold text-zinc-400">Success Rate</span>
-                            <span className="font-bold text-xl">{Math.round(selectedRun.success_rate * 100)}%</span>
+                            <span className="text-[10px] uppercase font-bold text-[#AAAAAA]">Success Rate</span>
+                            <span className="font-bold text-2xl text-[#333333]">{Math.round(selectedRun.success_rate * 100)}%</span>
                         </div>
                     </div>
                 </div>
 
-                <div className="flex-1 overflow-y-auto p-8 z-10 space-y-4">
+                <div className="flex-1 overflow-y-auto p-8 z-10 space-y-4 scrollbar-thin scrollbar-thumb-[#E0E0E0]">
                     {/* Results List */}
                     {selectedRun.results.map((r: any, i: number) => (
                         <ScenarioCard key={i} result={r} />
@@ -62,21 +58,20 @@ export default function HistoryView({ onBack }: { onBack: () => void }) {
     }
 
     return (
-        <div className="flex flex-col h-screen bg-zinc-50 overflow-hidden relative font-sans text-zinc-900 animate-fade-in-up">
-            <GridPattern />
+        <div className="flex flex-col h-screen bg-[#F7F7F7] overflow-hidden relative font-sans text-[#333333] animate-fade-in-up">
 
             <div className="p-8 z-10 flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                    <button onClick={onBack} className="p-2 hover:bg-zinc-200 rounded-full transition-colors bg-white border border-zinc-200 shadow-sm">
-                        <ArrowLeft size={20} />
+                    <button onClick={onBack} className="p-3 neu-btn text-[#555555]">
+                        <IconArrowLeft size={20} />
                     </button>
-                    <h1 className="text-2xl font-bold tracking-tight">Run History</h1>
+                    <h1 className="text-2xl font-bold tracking-tight text-[#333333]">Run History</h1>
                 </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto px-8 pb-8 z-10 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="flex-1 overflow-y-auto px-8 pb-8 z-10 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 scrollbar-thin scrollbar-thumb-[#E0E0E0]">
                 {history.length === 0 && (
-                    <div className="col-span-full h-64 flex items-center justify-center text-zinc-400 italic">
+                    <div className="col-span-full h-64 flex items-center justify-center text-[#AAAAAA] italic">
                         No history found. Run a simulation first!
                     </div>
                 )}
@@ -84,40 +79,48 @@ export default function HistoryView({ onBack }: { onBack: () => void }) {
                     <div
                         key={run.id}
                         onClick={() => setSelectedRun(run)}
-                        className="bg-white rounded-2xl p-5 border border-zinc-200 shadow-sm hover:shadow-md transition-all cursor-pointer group relative overflow-hidden"
+                        className="neu-card p-6 cursor-pointer group relative overflow-hidden transition-all hover:scale-[1.01]"
                     >
-                        <div className="flex justify-between items-start mb-4">
-                            <div className="flex items-center gap-2 text-zinc-400 text-xs font-medium">
-                                <Calendar size={14} />
+                        <div className="flex justify-between items-start mb-6">
+                            <div className="flex items-center gap-2 text-[#AAAAAA] text-xs font-bold uppercase tracking-wider">
+                                {/* Status Dot moved to Header */}
+                                <div className={`w-2.5 h-2.5 rounded-full ${run.success_rate >= (run.config.threshold || 0.8) ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.4)]' : 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.4)]'}`} />
+                                <IconCalendar size={14} />
                                 {new Date(run.timestamp).toLocaleDateString()}
                             </div>
                             <button
                                 onClick={(e) => deleteRun(e, run.id)}
-                                className="text-zinc-300 hover:text-red-500 transition-colors p-1"
+                                className="text-[#AAAAAA] hover:text-[#333333] transition-colors p-1"
                             >
-                                <Trash2 size={16} />
+                                <IconTrash size={16} />
                             </button>
                         </div>
 
-                        <div className="mb-4">
-                            <div className="text-sm font-semibold text-zinc-900 mb-1">
+                        <div className="mb-6 h-32 overflow-hidden relative">
+                            <div className="text-sm font-bold text-[#333333] mb-2">
                                 {run.config.model_name}
                             </div>
-                            <div className="text-xs text-zinc-500 line-clamp-2">
+                            <div className="text-xs text-[#777777] leading-relaxed line-clamp-4">
                                 {run.config.base_prompt}
                             </div>
                         </div>
 
-                        <div className="flex items-center gap-4 pt-4 border-t border-zinc-100">
+                        <div className="flex items-center justify-between pt-4 border-t border-[#E0E0E0]">
                             <div>
-                                <div className="text-[10px] uppercase font-bold text-zinc-400">Success</div>
-                                <div className={`text-lg font-bold ${run.success_rate >= (run.config.threshold || 0.8) ? 'text-green-600' : 'text-zinc-900'}`}>
+                                <div className="text-[9px] uppercase font-bold text-[#AAAAAA] mb-0.5">Success</div>
+                                <div className={`text-xl font-bold ${run.success_rate >= (run.config.threshold || 0.8) ? 'text-[#333333]' : 'text-[#777777]'}`}>
                                     {Math.round(run.success_rate * 100)}%
                                 </div>
                             </div>
-                            <div>
-                                <div className="text-[10px] uppercase font-bold text-zinc-400">Cycles</div>
-                                <div className="text-lg font-bold text-zinc-900">
+                            <div className="text-right">
+                                <div className="text-[9px] uppercase font-bold text-[#AAAAAA]">Avg Score</div>
+                                <div className="text-xl font-bold text-[#333333]">
+                                    {Math.round((run.results?.reduce((acc: number, r: any) => acc + (r.score || 0), 0) || 0) / (run.results?.length || 1))}
+                                </div>
+                            </div>
+                            <div className="text-right">
+                                <div className="text-[9px] uppercase font-bold text-[#AAAAAA]">Cycles</div>
+                                <div className="text-xl font-bold text-[#333333]">
                                     {run.total_cycles}
                                 </div>
                             </div>

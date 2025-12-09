@@ -5,8 +5,7 @@ import { type ScenarioResult } from './ScenarioCard';
 import CycleGroup from './CycleGroup';
 import DiffViewer from './DiffViewer';
 import HistoryView from './HistoryView';
-import { Activity, Layers, Clock } from 'lucide-react';
-import { GridPattern, MeshGradient } from './Backgrounds';
+import { IconLayers, IconClock, IconActivity, IconGraph, IconCheck } from './Icons';
 
 interface OptimizationEntry {
     cycle: number;
@@ -145,7 +144,7 @@ export default function Dashboard() {
     }
 
     return (
-        <div className="flex bg-zinc-50 min-h-screen text-zinc-900 font-sans selection:bg-blue-500/20 overflow-hidden relative">
+        <div className="flex bg-[#F7F7F7] h-screen text-[#333333] font-sans overflow-hidden relative selection:bg-[#E0E0E0]">
             <Sidebar
                 config={config}
                 setConfig={setConfig}
@@ -155,69 +154,116 @@ export default function Dashboard() {
             />
 
             {/* Main Content */}
-            <main className="flex-1 flex flex-col h-[100dvh] relative overflow-hidden">
-                <GridPattern />
-                <MeshGradient />
+            <main className="flex-1 flex flex-col h-[100dvh] relative overflow-hidden pl-2">
 
                 {/* Top Bar / Stats */}
-                <div className="p-6 shrink-0 z-10 grid grid-cols-4 gap-4 pb-2">
-                    <div className="bg-white/50 backdrop-blur-md p-4 rounded-2xl border border-zinc-200/50 shadow-sm flex items-center gap-4">
-                        <div className="p-3 bg-zinc-900 text-white rounded-xl">
-                            <Layers size={20} />
+                <div className="p-8 pb-4 shrink-0 grid grid-cols-4 gap-6">
+                    <div className="neu-card p-6 flex flex-col justify-between h-[120px] relative overflow-hidden group">
+                        <div className="flex justify-between items-start z-10">
+                            <div>
+                                <p className="text-[10px] text-[#AAAAAA] font-bold uppercase tracking-widest mb-1">Total Runs</p>
+                                <p className="text-3xl font-bold tracking-tight text-[#333333]">{results.length}</p>
+                            </div>
+                            <div className="p-2 rounded-lg bg-[#F7F7F7] shadow-[inset_2px_2px_5px_#bebebe,inset_-2px_-2px_5px_#ffffff]">
+                                <IconLayers size={18} className="text-[#333333]" />
+                            </div>
                         </div>
-                        <div>
-                            <p className="text-xs text-zinc-500 font-bold uppercase tracking-wider">Total Runs</p>
-                            <p className="text-2xl font-bold">{results.length}</p>
-                        </div>
-                    </div>
-
-                    <div className="bg-white/50 backdrop-blur-md p-4 rounded-2xl border border-zinc-200/50 shadow-sm flex items-center gap-4">
-                        <div className="p-3 bg-zinc-900 text-white rounded-xl">
-                            <Clock size={20} />
-                        </div>
-                        <div>
-                            <p className="text-xs text-zinc-500 font-bold uppercase tracking-wider">Current Cycle</p>
-                            <p className="text-2xl font-bold">{cycleAvg}</p>
+                        <div className="absolute -bottom-4 -right-4 opacity-[0.03] scale-150 rotate-[-15deg] transition-transform duration-500 group-hover:scale-[1.8] group-hover:rotate-0 text-[#333333]">
+                            <IconLayers size={100} />
                         </div>
                     </div>
 
-                    {/* View History Button (Moved here) */}
-                    <button
-                        onClick={() => setViewMode('history')}
-                        className="bg-white/50 backdrop-blur-md p-4 rounded-2xl border border-zinc-200/50 shadow-sm flex items-center gap-4 hover:bg-white/80 transition-all text-left group"
-                    >
-                        <div className="p-3 bg-zinc-100 text-zinc-600 rounded-xl group-hover:bg-blue-500 group-hover:text-white transition-colors">
-                            <Layers size={20} />
+                    <div className="neu-card p-6 flex flex-col justify-between h-[120px] relative overflow-hidden group">
+                        <div className="flex justify-between items-start z-10">
+                            <div>
+                                <p className="text-[10px] text-[#AAAAAA] font-bold uppercase tracking-widest mb-1">Current Cycle</p>
+                                <p className="text-3xl font-bold tracking-tight text-[#333333]">{cycleAvg}</p>
+                            </div>
+                            <div className="p-2 rounded-lg bg-[#F7F7F7] shadow-[inset_2px_2px_5px_#bebebe,inset_-2px_-2px_5px_#ffffff]">
+                                <IconClock size={18} className="text-[#333333]" />
+                            </div>
                         </div>
-                        <div>
-                            <p className="text-xs text-zinc-500 font-bold uppercase tracking-wider group-hover:text-blue-600">History</p>
-                            <p className="text-sm font-bold flex items-center gap-1">View Archives</p>
+                        <div className="absolute -bottom-2 -right-2 opacity-[0.03] scale-150 transition-transform duration-500 group-hover:scale-[1.8] group-hover:rotate-[20deg] text-[#333333]">
+                            <IconClock size={100} />
                         </div>
-                    </button>
+                    </div>
 
-                    <div className="bg-white/50 backdrop-blur-md p-4 rounded-2xl border border-zinc-200/50 shadow-sm flex items-center gap-4">
-                        <div className="p-3 bg-zinc-900 text-white rounded-xl">
-                            <Activity size={20} />
+                    <div className="neu-card p-6 flex flex-col justify-between h-[120px] relative overflow-hidden group cursor-pointer hover:translate-y-[-2px] transition-transform" onClick={() => setViewMode('history')}>
+                        <div className="flex justify-between items-start z-10">
+                            <div>
+                                <p className="text-[10px] text-[#AAAAAA] font-bold uppercase tracking-widest mb-1">History</p>
+                                <p className="text-lg font-bold tracking-tight text-[#333333] mt-1 flex items-center gap-2">
+                                    View Archives <IconGraph size={14} />
+                                </p>
+                            </div>
+                            <div className="p-2 rounded-lg bg-[#333333] text-white shadow-lg group-hover:bg-black transition-colors">
+                                <IconLayers size={18} />
+                            </div>
                         </div>
-                        <div>
-                            <p className="text-xs text-zinc-500 font-bold uppercase tracking-wider">Pass Rate</p>
-                            <p className={`text-2xl font-bold ${passRate > 80 ? 'text-green-600' : 'text-zinc-900'}`}>
-                                {passRate.toFixed(1)}%
-                            </p>
+                        <div className="absolute -bottom-4 -right-4 opacity-[0.03] scale-150 rotate-[10deg] transition-transform duration-500 group-hover:scale-[1.8] group-hover:rotate-[-5deg] text-[#333333]">
+                            <IconGraph size={100} />
+                        </div>
+                    </div>
+
+                    <div className="neu-card p-6 flex items-center justify-between h-[120px] relative overflow-hidden group">
+                        <div className="z-10">
+                            <p className="text-[10px] text-[#AAAAAA] font-bold uppercase tracking-widest mb-2">Pass Rate</p>
+                            <div className="flex items-baseline gap-1">
+                                <p className="text-4xl font-bold tracking-tight text-[#333333]">
+                                    {passRate.toFixed(1)}
+                                </p>
+                                <span className="text-sm font-medium text-[#AAAAAA]">%</span>
+                            </div>
+                        </div>
+
+                        {/* Simple visual ring representation */}
+                        <div className="relative w-16 h-16 flex items-center justify-center z-10">
+                            <svg className="w-full h-full transform -rotate-90">
+                                <circle
+                                    cx="32"
+                                    cy="32"
+                                    r="28"
+                                    stroke="#E0E0E0"
+                                    strokeWidth="4"
+                                    fill="none"
+                                />
+                                <circle
+                                    cx="32"
+                                    cy="32"
+                                    r="28"
+                                    stroke="#333333"
+                                    strokeWidth="4"
+                                    fill="none"
+                                    strokeDasharray={176}
+                                    strokeDashoffset={176 - (176 * passRate) / 100}
+                                    strokeLinecap="round"
+                                />
+                            </svg>
+                            <IconCheck size={16} className="absolute text-[#333333]" />
+                        </div>
+
+                        <div className="absolute -left-4 -bottom-4 opacity-[0.03] scale-150 rotate-[-10deg] transition-transform duration-500 group-hover:scale-[1.8] group-hover:rotate-[5deg] text-[#333333]">
+                            <IconActivity size={100} />
                         </div>
                     </div>
                 </div>
 
-                {/* Content Area - Uses min-h-0 to prevent overflow logic issues */}
-                <div className="flex-1 p-6 pt-2 grid grid-cols-12 gap-6 min-h-0 overflow-hidden z-10">
+                {/* Content Area */}
+                <div className="flex-1 p-8 pt-2 grid grid-cols-12 gap-8 min-h-0 overflow-hidden pb-8">
 
                     {/* Left: Simulation Feed */}
                     <div className="col-span-8 flex flex-col h-full min-h-0">
-                        <div className="flex-1 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-zinc-300 scrollbar-track-transparent pb-4">
+                        {/* Header for feed */}
+                        <div className="mb-4 flex items-center gap-2 px-2">
+                            <div className="w-1.5 h-1.5 rounded-full bg-[#333333]"></div>
+                            <span className="text-xs font-bold uppercase tracking-widest text-[#AAAAAA]">Live Results Stream</span>
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto pr-4 scrollbar-none pb-4">
                             {results.length === 0 && !isRunning && (
-                                <div className="h-full flex flex-col items-center justify-center text-zinc-400 opacity-50">
-                                    <Layers size={48} className="mb-4 text-zinc-300" />
-                                    <p className="font-medium">Ready to Simulate</p>
+                                <div className="h-full flex flex-col items-center justify-center text-[#AAAAAA] opacity-40">
+                                    <IconActivity size={48} className="mb-4" />
+                                    <p className="font-medium tracking-wide uppercase text-xs">Ready to Simulate</p>
                                 </div>
                             )}
 
@@ -237,14 +283,8 @@ export default function Dashboard() {
                     </div>
 
                     {/* Right: Terminal & Diff */}
-                    <div className="col-span-4 flex flex-col gap-4 h-full min-h-0 pb-4">
-                        <div className={`${optimizationHistory.length > 0 ? 'flex-[2]' : 'flex-1'} min-h-0 bg-zinc-900 rounded-2xl shadow-lg border border-zinc-800 overflow-hidden flex flex-col transition-all duration-500`}>
-                            <div className="bg-zinc-800/50 px-4 py-2 text-xs font-mono text-zinc-400 border-b border-zinc-800 flex items-center gap-2 shrink-0">
-                                <div className="w-2 h-2 rounded-full bg-red-500" />
-                                <div className="w-2 h-2 rounded-full bg-yellow-500" />
-                                <div className="w-2 h-2 rounded-full bg-green-500" />
-                                <span className="ml-2">Real-time Logs</span>
-                            </div>
+                    <div className="col-span-4 flex flex-col gap-6 h-full min-h-0">
+                        <div className={`${optimizationHistory.length > 0 ? 'flex-[2]' : 'flex-1'} min-h-0 flex flex-col transition-all duration-500`}>
                             <LogTerminal logs={logs} />
                         </div>
 
