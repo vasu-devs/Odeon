@@ -2,9 +2,8 @@
 
 **Odeon** is a strictly monochrome, advanced AI testing and optimization platform designed to simulate, evaluate, and self-correct AI agent behaviors. It automates the loop of generating test scenarios, running conversations, scoring performance, and iteratively refining the system prompt to meet specific KPI targets.
 
-<div allign="center">
+
 [![Visualize in MapMyRepo](https://mapmyrepo.vasudev.live/badge.svg)](https://mapmyrepo.vasudev.live/?user=vasu-devs&repo=Odeon)
-</div>
 
 ## 🚀 Key Features
 
