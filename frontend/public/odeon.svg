@@ -1,0 +1,29 @@
+<svg width="120" height="120" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <style>
+        :root {
+            --color: #333333;
+        }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --color: #FFFFFF;
+            }
+        }
+        .odeon-icon {
+            fill: var(--color);
+            stroke: var(--color);
+        }
+        .odeon-fill {
+            fill: var(--color);
+        }
+        .odeon-stroke {
+            stroke: var(--color);
+        }
+    </style>
+    <circle cx="60" cy="85" r="6" class="odeon-fill" />
+    <path d="M40 85 C40 73.9543 48.9543 65 60 65 C71.0457 65 80 73.9543 80 85"
+        class="odeon-stroke" stroke-width="8" stroke-linecap="square" />
+    <path d="M25 85 C25 65.67 40.67 50 60 50 C79.33 50 95 65.67 95 85"
+        class="odeon-stroke" stroke-width="8" stroke-linecap="square" />
+    <path d="M10 85 C10 57.3858 32.3858 35 60 35 C87.6142 35 110 57.3858 110 85"
+        class="odeon-stroke" stroke-width="8" stroke-linecap="square" />
+</svg>
