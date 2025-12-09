@@ -1,7 +1,9 @@
 import os
+import time
+import httpx # S-Tier Fix: Robust timeouts
 import google.generativeai as genai
 from openai import OpenAI
-from groq import Groq
+from groq import Groq, RateLimitError # S-Tier Fix: Handling 429s
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -35,7 +37,11 @@ class LLMClient:
             if not self.api_key:
                  print("WARNING: GROQ_API_KEY missing.")
             
-            self.client = Groq(api_key=self.api_key)
+            # S-TIER FIX: Set explicit 60s timeout to prevent 'Request timed out' crashes
+            self.client = Groq(
+                api_key=self.api_key,
+                timeout=httpx.Timeout(60.0, connect=10.0)
+            )
             
             if not self.model_name:
                 self.model_name = "llama-3.1-70b-versatile"
@@ -83,6 +89,10 @@ class LLMClient:
         return response.choices[0].message.content
 
     def _complete_groq(self, messages, temperature, json_response, stop):
+        # S-TIER FIX: Retry logic for Rate Limits
+        max_retries = 3
+        current_try = 0
+        
         kwargs = {
             "model": self.model_name,
             "messages": messages,
@@ -93,8 +103,22 @@ class LLMClient:
         if json_response:
              kwargs["response_format"] = {"type": "json_object"}
 
-        response = self.client.chat.completions.create(**kwargs)
-        return response.choices[0].message.content
+        while current_try < max_retries:
+            try:
+                response = self.client.chat.completions.create(**kwargs)
+                return response.choices[0].message.content
+            
+            except RateLimitError:
+                wait_time = 20 * (current_try + 1)
+                print(f"[LLMClient] Rate Limit Hit. Cooling down for {wait_time}s...")
+                time.sleep(wait_time)
+                current_try += 1
+            
+            except Exception as e:
+                print(f"[LLMClient] Groq Error: {e}")
+                return None
+                
+        return None
 
     def _complete_gemini(self, messages, temperature, json_response, stop):
         system_instruction = None

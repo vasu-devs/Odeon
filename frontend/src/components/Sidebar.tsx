@@ -21,10 +21,9 @@ export interface SidebarProps {
     onStart: () => void;
     onStop: () => void;
     isRunning: boolean;
-    onHistory: () => void;
 }
 
-export default function Sidebar({ config, setConfig, onStart, onStop, isRunning, onHistory }: SidebarProps) {
+export default function Sidebar({ config, setConfig, onStart, onStop, isRunning }: SidebarProps) {
 
     const handleChange = (field: keyof Config, value: any) => {
         setConfig(prev => ({ ...prev, [field]: value }));
@@ -53,17 +52,6 @@ export default function Sidebar({ config, setConfig, onStart, onStop, isRunning,
             </div>
 
             <div className="flex-1 overflow-y-auto px-6 py-2 space-y-8">
-
-                {/* History Button at top for easy access */}
-                <div className="space-y-4">
-                    <button
-                        onClick={onHistory}
-                        className="w-full flex items-center justify-center gap-2 bg-white border border-zinc-200 p-3 rounded-xl font-bold text-sm text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900 transition-all shadow-sm group"
-                    >
-                        <FolderClock size={16} className="text-zinc-400 group-hover:text-blue-500 transition-colors" />
-                        View History
-                    </button>
-                </div>
 
                 {/* API Settings */}
                 <div className="space-y-4">

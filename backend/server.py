@@ -6,6 +6,7 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from datetime import datetime
+import traceback
 
 # Import existing logic
 from llm_client import LLMClient
@@ -44,7 +45,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ... (Logger classes remain the same) ...
+# ... (Logger classes) ...
 class WebSocketLogger:
     def __init__(self, websocket: WebSocket):
         self.websocket = websocket
@@ -82,6 +83,13 @@ async def websocket_endpoint(websocket: WebSocket):
     simulation.console = AsyncConsoleLogger()
     main.console = simulation.console 
     
+    run_id = datetime.now().strftime("%Y%m%d%H%M%S")
+    all_results_storage = []
+    optimization_storage = []
+    config = None
+    final_success_rate = 0.0
+    cycle = 0
+
     try:
         data = await websocket.receive_text()
         config_dict = json.loads(data)
@@ -97,8 +105,8 @@ async def websocket_endpoint(websocket: WebSocket):
             "optimizer": agent_client
         }
         
+        # Initialize Components
         agent = DebtCollectionAgent(clients["agent"], system_prompt=config.base_prompt)
-        
         generator = DefaulterGenerator(clients["generator"])
         evaluator = Evaluator(clients["evaluator"])
         optimizer = ScriptOptimizer(clients["optimizer"])
@@ -114,7 +122,7 @@ async def websocket_endpoint(websocket: WebSocket):
 
         await websocket.send_json({"type": "log", "message": "Starting Simulation Loop..."})
 
-        # Run Loop
+        # Run Loop Configuration
         batch_size = config.batch_size
         max_cycles = config.max_cycles
         
@@ -123,13 +131,6 @@ async def websocket_endpoint(websocket: WebSocket):
         target_empathy = config.thresholds.empathy
         target_overall = config.thresholds.overall
 
-        all_results_storage = []
-        optimization_storage = []
-        final_success_rate = 0.0
-
-        # Tracking for history
-        run_id = datetime.now().strftime("%Y%m%d%H%M%S")
-
         # Start with the initial prompt (wrapped by Agent)
         current_prompt = agent.raw_system_prompt
 
@@ -137,13 +138,12 @@ async def websocket_endpoint(websocket: WebSocket):
             await websocket.send_json({"type": "log", "message": f"--- Cycle {cycle}/{max_cycles} ---"})
             
             batch_results = []
-            failures = []
             batch_passes = 0
             
             for b in range(1, batch_size + 1):
                 await websocket.send_json({"type": "log", "message": f"Simulating {b}/{batch_size}..."})
                 
-                # 1. Generate Persona
+                # 1. Generate Persona (Sync task running in thread)
                 persona = await asyncio.to_thread(generator.generate_persona)
                 defaulter = DefaulterAgent(persona, clients["generator"])
                 
@@ -151,12 +151,12 @@ async def websocket_endpoint(websocket: WebSocket):
                 agent.reset(defaulter_name=persona.name)
                 current_prompt = agent.raw_system_prompt
                 
-                # 2. Run Simulation
+                # 2. Run Simulation (Sync task running in thread)
                 sim = ConversationSimulator(agent, defaulter)
                 logs = await asyncio.to_thread(sim.run)
                 
-                # 3. Evaluate
-                result = await asyncio.to_thread(evaluator.evaluate_conversation, logs)
+                # 3. Evaluate (Async task - direct await)
+                result = await evaluator.evaluate(logs)
                 
                 # GRANULAR PASS CHECK
                 passed = (
@@ -198,9 +198,9 @@ async def websocket_endpoint(websocket: WebSocket):
                     }]
                     
                     try:
+                        # CRITICAL FIX: optimize_screenplay is async, do NOT use to_thread
                         # Pass specific targets to optimizer
-                        new_prompt = await asyncio.to_thread(
-                            optimizer.optimize_screenplay, 
+                        new_prompt = await optimizer.optimize_screenplay(
                             current_prompt, 
                             single_failure, 
                             previous_success_rate=current_rate, 
@@ -225,7 +225,9 @@ async def websocket_endpoint(websocket: WebSocket):
                         await websocket.send_json({"type": "log", "message": "Prompt Updated."})
                         
                     except Exception as opt_err:
-                        simulation.console.print(f"[red]Optimization Error: {opt_err}[/red]")
+                        # Print full traceback to console for debugging
+                        traceback.print_exc()
+                        await websocket.send_json({"type": "log", "message": f"[red]Optimization Error: {opt_err}[/red]"})
                 
                 else:
                      await websocket.send_json({"type": "log", "message": f"Scenario Passed. Rate {current_rate:.1%}."})
@@ -246,7 +248,7 @@ async def websocket_endpoint(websocket: WebSocket):
 
                 # Send Frontend Event
                 transcript_text = "\n".join([f"{l['role']}: {l['content']}" for l in logs])
-                # Ensure updated_prompt is explicitly sent as null if not updated
+                
                 await websocket.send_json({
                     "type": "result",
                     "cycle": cycle,
@@ -264,19 +266,27 @@ async def websocket_endpoint(websocket: WebSocket):
                 await asyncio.sleep(0.1)
 
             final_success_rate = batch_passes / batch_size
-        
-        # Save History
-        await websocket.send_json({"type": "log", "message": "Saving Simulation History..."})
-        run_data = {
-            "id": run_id,
-            "timestamp": datetime.now().isoformat(),
-            "config": config.dict(),
-            "results": all_results_storage,
-            "optimization_history": optimization_storage,
-            "success_rate": final_success_rate,
-            "total_cycles": cycle
-        }
-        await asyncio.to_thread(history_manager.save_run, run_data)
+            
+            # Calculate Batch Averages
+            if batch_results:
+                avg_rep = sum(r.metrics.repetition for r in batch_results) / batch_size
+                avg_neg = sum(r.metrics.negotiation for r in batch_results) / batch_size
+                avg_emp = sum(r.metrics.empathy for r in batch_results) / batch_size
+                avg_overall = sum(r.overall_rating for r in batch_results) / batch_size
+                
+                await websocket.send_json({"type": "log", "message": f"Cycle {cycle} Stats: Rep={avg_rep:.1f}, Neg={avg_neg:.1f}, Emp={avg_emp:.1f}, Overall={avg_overall:.1f}"})
+
+                # STRICT SUCCESS CONDITION
+                if (avg_rep >= target_repetition and
+                    avg_neg >= target_negotiation and
+                    avg_emp >= target_empathy and
+                    avg_overall >= target_overall):
+                    
+                    await websocket.send_json({"type": "log", "message": f"[bold green]SUCCESS! All targets met in Cycle {cycle}. Stopping Optimization.[/bold green]"})
+                    # success_rate = final_success_rate # For history
+                    break
+            else:
+                await websocket.send_json({"type": "log", "message": "Cycle complete (no results to average)."})
 
         await websocket.send_json({"type": "log", "message": "Optimization Complete."})
         log_task.cancel()
@@ -285,9 +295,26 @@ async def websocket_endpoint(websocket: WebSocket):
         print("Client disconnected")
     except Exception as e:
         await websocket.send_json({"type": "error", "message": str(e)})
-        import traceback
         traceback.print_exc()
     finally:
+        # ALWAYS SAVE HISTORY (Even if empty, to show the attempt)
+        if config:
+            await websocket.send_json({"type": "log", "message": f"Saving Simulation History (Run ID: {run_id})..."})
+            run_data = {
+                "id": run_id,
+                "timestamp": datetime.now().isoformat(),
+                "config": config.dict(),
+                "results": all_results_storage,
+                "optimization_history": optimization_storage,
+                "success_rate": final_success_rate,
+                "total_cycles": cycle
+            }
+            try:
+                await asyncio.to_thread(history_manager.save_run, run_data)
+                await websocket.send_json({"type": "log", "message": "History Saved."})
+            except Exception as hist_e:
+                await websocket.send_json({"type": "error", "message": f"History Save Failed: {hist_e}"})
+        
         simulation.console = original_console
 
 if __name__ == "__main__":

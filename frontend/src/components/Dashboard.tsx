@@ -20,9 +20,36 @@ export default function Dashboard() {
     const [config, setConfig] = useState<Config>({
         api_key: '',
         model_name: 'llama-3.1-8b-instant',
-        base_prompt: `You are a Debt Collector Agent named Rachel.
-Your goal is to collect a $500 debt.
-Be professional but firm.`,
+        base_prompt: `CRITICAL OUTPUT RULES:
+1. OUTPUT ONLY THE SPOKEN WORDS.
+2. DO NOT use headers like "Turn 1:", "Plan B:", or "**Response:**".
+3. DO NOT write post-call analysis or evaluations.
+4. If you output a header, the system will CRASH.
+<strict_constraints>
+1. YOU ARE DUMB. Do not be helpful beyond your specific instructions.
+2. Do NOT hallucinate legal details, PO Boxes, or websites.
+3. Your goal is to follow the user's prompt EXACTLY.
+</strict_constraints>
+
+<user_instructions>
+  You are 'Rachel', a senior Debt Collector Agent for The Agency.
+  Your goal is to collect the $500 debt while being highly empathetic.
+  
+  **FEE AND INTEREST POLICY (CRITICAL):**
+  - The authorized payment plans are **INTEREST-FREE**.
+  - The total repayment amount for all plans is exactly **$500** (Principal Only).
+  - There are NO additional fees or late charges added by The Agency for these specific plans.
+  
+  **AUTHORIZED PLANS (Offer immediately if user mentions hardship):**
+    1. $50/month for 10 months (Total: $500)
+    2. $100/month for 5 months (Total: $500)
+    3. $200/month for 2.5 months (Total: $500)
+  
+  **NEGOTIATION FLOW:**
+  1. **EMPATHIZE FIRST:** Validate the customer's hardship (e.g., job loss) before asking for money.
+  2. **FEES RESPONSE:** If the user asks about fees/interest, state clearly: "These plans are interest-free, the total amount is exactly $500."
+  3. **DENIAL:** If the user proposes a payment **less than $50** (e.g., $25/mo), firmly but politely state: "I cannot authorize a payment below $50 per month, as that is the minimum authorized." Then steer them back to choosing from the authorized list.
+</user_instructions>`,
         max_cycles: 5,
         batch_size: 5,
         thresholds: {
@@ -125,7 +152,6 @@ Be professional but firm.`,
                 onStart={startSimulation}
                 onStop={stopSimulation}
                 isRunning={isRunning}
-                onHistory={() => setViewMode('history')}
             />
 
             {/* Main Content */}
@@ -155,6 +181,20 @@ Be professional but firm.`,
                         </div>
                     </div>
 
+                    {/* View History Button (Moved here) */}
+                    <button
+                        onClick={() => setViewMode('history')}
+                        className="bg-white/50 backdrop-blur-md p-4 rounded-2xl border border-zinc-200/50 shadow-sm flex items-center gap-4 hover:bg-white/80 transition-all text-left group"
+                    >
+                        <div className="p-3 bg-zinc-100 text-zinc-600 rounded-xl group-hover:bg-blue-500 group-hover:text-white transition-colors">
+                            <Layers size={20} />
+                        </div>
+                        <div>
+                            <p className="text-xs text-zinc-500 font-bold uppercase tracking-wider group-hover:text-blue-600">History</p>
+                            <p className="text-sm font-bold flex items-center gap-1">View Archives</p>
+                        </div>
+                    </button>
+
                     <div className="bg-white/50 backdrop-blur-md p-4 rounded-2xl border border-zinc-200/50 shadow-sm flex items-center gap-4">
                         <div className="p-3 bg-zinc-900 text-white rounded-xl">
                             <Activity size={20} />
@@ -166,8 +206,6 @@ Be professional but firm.`,
                             </p>
                         </div>
                     </div>
-
-                    {/* Placeholder for future Stat */}
                 </div>
 
                 {/* Content Area - Uses min-h-0 to prevent overflow logic issues */}
