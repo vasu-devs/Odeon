@@ -1,4 +1,5 @@
 from llm_client import LLMClient
+import time
 from typing import List, Dict
 
 class DebtCollectionAgent:
@@ -94,15 +95,33 @@ class DebtCollectionAgent:
         self.history = [{"role": "system", "content": final_prompt}]
 
     def respond(self, user_input: str = None):
-        """Generates a response from the Agent."""
+        """Generates a response from the Agent with built-in retry mechanism."""
         if user_input:
             self.history.append({"role": "user", "content": user_input})
         
         stops = ["Defaulter:", "User:", "\n\n", "[Your turn"]
         
-        response = self.llm.complete_chat(self.history, stop=stops)
+        max_retries = 3
         
-        if response:
-            self.history.append({"role": "assistant", "content": response})
+        for attempt in range(max_retries):
+            try:
+                # Assuming self.llm.complete_chat is the synchronous API call
+                response = self.llm.complete_chat(self.history, stop=stops)
+                
+                if response and response.strip():
+                    # SUCCESS: Response received and non-empty
+                    self.history.append({"role": "assistant", "content": response})
+                    return response
+                
+                # If LLM returns an empty string, log and retry
+                print(f"[Agent] WARNING: Empty response from LLM (Attempt {attempt + 1}/{max_retries}). Retrying...")
+                time.sleep(2)
+            
+            except Exception as e:
+                # Handle connection errors (which might result in None/Exception)
+                print(f"[Agent] ERROR: LLM connection failure on attempt {attempt + 1}: {e}")
+                time.sleep(3)
         
-        return response
+        # If all retries fail, return a safe fallback message
+        print("[Agent] CRITICAL: LLM failed to respond after all retries.")
+        return "I am sorry, I am experiencing a technical difficulty. Please hold while I reconnect you."

@@ -115,9 +115,11 @@ class LLMClient:
                 current_try += 1
             
             except Exception as e:
-                print(f"[LLMClient] Groq Error: {e}")
-                return None
+                print(f"[LLMClient] Groq Error: {e}. Retrying ({current_try + 1}/{max_retries})...")
+                time.sleep(2) # Short pause for transient errors
+                current_try += 1
                 
+        print("[LLMClient] Max retries reached. Returning None.")
         return None
 
     def _complete_gemini(self, messages, temperature, json_response, stop):
