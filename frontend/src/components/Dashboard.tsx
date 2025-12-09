@@ -144,7 +144,7 @@ export default function Dashboard() {
     }
 
     return (
-        <div className="flex bg-[#F7F7F7] h-screen text-[#333333] font-sans overflow-hidden relative selection:bg-[#E0E0E0]">
+        <div className="flex bg-[#E5E5E5] h-screen text-[#333333] font-sans overflow-hidden relative selection:bg-[#E0E0E0]">
             <Sidebar
                 config={config}
                 setConfig={setConfig}
@@ -185,23 +185,6 @@ export default function Dashboard() {
                         </div>
                         <div className="absolute -bottom-2 -right-2 opacity-[0.03] scale-150 transition-transform duration-500 group-hover:scale-[1.8] group-hover:rotate-[20deg] text-[#333333]">
                             <IconClock size={100} />
-                        </div>
-                    </div>
-
-                    <div className="neu-card p-6 flex flex-col justify-between h-[120px] relative overflow-hidden group cursor-pointer hover:translate-y-[-2px] transition-transform" onClick={() => setViewMode('history')}>
-                        <div className="flex justify-between items-start z-10">
-                            <div>
-                                <p className="text-[10px] text-[#AAAAAA] font-bold uppercase tracking-widest mb-1">History</p>
-                                <p className="text-lg font-bold tracking-tight text-[#333333] mt-1 flex items-center gap-2">
-                                    View Archives <IconGraph size={14} />
-                                </p>
-                            </div>
-                            <div className="p-2 rounded-lg bg-[#333333] text-white shadow-lg group-hover:bg-black transition-colors">
-                                <IconLayers size={18} />
-                            </div>
-                        </div>
-                        <div className="absolute -bottom-4 -right-4 opacity-[0.03] scale-150 rotate-[10deg] transition-transform duration-500 group-hover:scale-[1.8] group-hover:rotate-[-5deg] text-[#333333]">
-                            <IconGraph size={100} />
                         </div>
                     </div>
 
@@ -246,6 +229,23 @@ export default function Dashboard() {
                             <IconActivity size={100} />
                         </div>
                     </div>
+
+                    <div className="neu-card p-6 flex flex-col justify-between h-[120px] relative overflow-hidden group cursor-pointer hover:translate-y-[-2px] transition-transform" onClick={() => setViewMode('history')}>
+                        <div className="flex justify-between items-start z-10">
+                            <div>
+                                <p className="text-[10px] text-[#AAAAAA] font-bold uppercase tracking-widest mb-1">History</p>
+                                <p className="text-lg font-bold tracking-tight text-[#333333] mt-1 flex items-center gap-2">
+                                    View Archives <IconGraph size={14} />
+                                </p>
+                            </div>
+                            <div className="p-2 rounded-lg bg-[#333333] text-white shadow-lg group-hover:bg-black transition-colors">
+                                <IconLayers size={18} />
+                            </div>
+                        </div>
+                        <div className="absolute -bottom-4 -right-4 opacity-[0.03] scale-150 rotate-[10deg] transition-transform duration-500 group-hover:scale-[1.8] group-hover:rotate-[-5deg] text-[#333333]">
+                            <IconGraph size={100} />
+                        </div>
+                    </div>
                 </div>
 
                 {/* Content Area */}
@@ -284,15 +284,16 @@ export default function Dashboard() {
 
                     {/* Right: Terminal & Diff */}
                     <div className="col-span-4 flex flex-col gap-6 h-full min-h-0">
-                        <div className={`${optimizationHistory.length > 0 ? 'flex-[2]' : 'flex-1'} min-h-0 flex flex-col transition-all duration-500`}>
-                            <LogTerminal logs={logs} />
+
+                        {/* 1. Prompt Evolution (DiffViewer) - Moved to TOP */}
+                        <div className={`min-h-0 transition-all duration-500 ${optimizationHistory.length > 0 ? 'h-[250px]' : 'hidden'}`}>
+                            {optimizationHistory.length > 0 && <DiffViewer history={optimizationHistory} />}
                         </div>
 
-                        {optimizationHistory.length > 0 && (
-                            <div className="flex-1 min-h-0 animate-fade-in-up">
-                                <DiffViewer history={optimizationHistory} />
-                            </div>
-                        )}
+                        {/* 2. Logs */}
+                        <div className={`min-h-0 flex flex-col transition-all duration-500 flex-1`}>
+                            <LogTerminal logs={logs} />
+                        </div>
                     </div>
                 </div>
             </main>

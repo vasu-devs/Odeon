@@ -40,7 +40,7 @@ export default function Sidebar({ config, setConfig, onStart, onStop, isRunning 
     };
 
     return (
-        <div className="w-[320px] p-6 bg-[#F7F7F7] flex flex-col border-r border-[#E0E0E0] h-full shadow-[6px_0_12px_rgba(0,0,0,0.02)] shrink-0 overflow-y-auto scrollbar-thin scrollbar-thumb-[#E0E0E0] z-20">
+        <div className="w-[320px] px-6 pt-6 pb-0 bg-[#F7F7F7] flex flex-col border-r border-[#E0E0E0] h-full shadow-[6px_0_12px_rgba(0,0,0,0.02)] shrink-0 overflow-y-auto scrollbar-thin scrollbar-thumb-[#E0E0E0] z-20">
             {/* Header */}
             <div className="flex items-center gap-4 mb-10">
                 <div className="p-3 bg-[#F7F7F7] rounded-xl shadow-[6px_6px_12px_#bebebe,-6px_-6px_12px_#ffffff]">
@@ -52,7 +52,7 @@ export default function Sidebar({ config, setConfig, onStart, onStop, isRunning 
                 </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto px-8 py-4 space-y-10 scrollbar-none">
+            <div className="flex-1 overflow-y-auto px-2 py-4 space-y-10 scrollbar-none -mx-2">
 
                 {/* API Settings */}
                 <div className="space-y-5">
@@ -160,7 +160,7 @@ export default function Sidebar({ config, setConfig, onStart, onStop, isRunning 
 
             </div>
 
-            <div className="p-8 pt-0 bg-[#F7F7F7]">
+            <div className="px-0 pb-6 pt-4 bg-[#F7F7F7] mt-auto">
                 <button
                     onClick={isRunning ? onStop : onStart}
                     className={`w-full py-4 rounded-xl font-bold flex items-center justify-center gap-3 transition-all duration-300 ${isRunning

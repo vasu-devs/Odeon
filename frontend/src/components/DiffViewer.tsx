@@ -26,14 +26,19 @@ export default function DiffViewer({ oldText, newText, reasoning, history }: Dif
 
     return (
         <div className="neu-card overflow-hidden flex flex-col h-full border-none">
-            <div className="bg-[#F7F7F7] px-5 py-4 border-b border-[#E0E0E0] flex items-center justify-between shrink-0 shadow-[inset_0_-1px_2px_#eeeeee]">
-                <div className="flex items-center gap-3 text-[#333333] font-bold text-[10px] uppercase tracking-widest">
-                    <IconCompare size={14} className="text-[#333333]" /> Prompt Evolution
+            <div className="bg-[#F7F7F7] px-5 py-4 border-b border-[#E0E0E0] shrink-0 shadow-[inset_0_-1px_2px_#eeeeee]">
+                <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center gap-2 text-[#333333] font-bold text-[10px] uppercase tracking-widest">
+                        <IconCompare size={14} className="text-[#333333]" /> Prompt Evolution
+                    </div>
                 </div>
                 {displayReason && (
-                    <span className="text-[10px] text-[#777777] italic max-w-lg truncate font-medium" title={displayReason}>
-                        Reasoning: {displayReason}
-                    </span>
+                    <div className="flex items-start gap-2 mt-2 bg-white/50 p-2 rounded border border-[#E0E0E0]/50">
+                        <span className="text-[10px] text-[#777777] font-medium leading-relaxed italic">
+                            <span className="font-bold not-italic text-[#555555] mr-1">Update Reason:</span>
+                            {displayReason}
+                        </span>
+                    </div>
                 )}
             </div>
             <div className="p-5 text-xs font-mono leading-relaxed text-[#555555] overflow-y-auto whitespace-pre-wrap grow scrollbar-thin scrollbar-thumb-zinc-300">

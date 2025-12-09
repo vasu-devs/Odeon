@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { IconArrowLeft, IconTrash, IconCalendar } from './Icons';
-import ScenarioCard from './ScenarioCard';
+import { IconArrowLeft, IconTrash, IconCalendar, IconCopy, IconCheck } from './Icons';
+import CycleGroup from './CycleGroup';
 
 interface HistoryItem {
     id: string;
@@ -9,6 +9,7 @@ interface HistoryItem {
     success_rate: number;
     total_cycles: number;
     results: any[];
+    optimization_history?: any[];
 }
 
 export default function HistoryView({ onBack }: { onBack: () => void }) {
@@ -28,10 +29,18 @@ export default function HistoryView({ onBack }: { onBack: () => void }) {
             .then(() => setHistory(prev => prev.filter(h => h.id !== id)));
     };
 
+    const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
+
+    const handleCopy = (text: string, index: number) => {
+        navigator.clipboard.writeText(text);
+        setCopiedIndex(index);
+        setTimeout(() => setCopiedIndex(null), 2000);
+    };
+
     if (selectedRun) {
         return (
-            <div className="flex flex-col h-screen bg-[#F7F7F7] overflow-hidden relative font-sans text-[#333333]">
-                <div className="p-6 z-10 flex items-center gap-4 border-b border-[#E0E0E0] bg-[#F7F7F7] shadow-[0_2px_4px_rgba(0,0,0,0.02)]">
+            <div className="flex flex-col h-screen bg-[#E5E5E5] overflow-hidden relative font-sans text-[#333333]">
+                <div className="p-6 z-10 flex items-center gap-4 border-b border-[#E0E0E0] bg-[#E5E5E5] shadow-[0_2px_4px_rgba(0,0,0,0.02)]">
                     <button onClick={() => setSelectedRun(null)} className="p-3 neu-btn hover:text-[#000000] text-[#555555]">
                         <IconArrowLeft size={20} />
                     </button>
@@ -47,18 +56,73 @@ export default function HistoryView({ onBack }: { onBack: () => void }) {
                     </div>
                 </div>
 
-                <div className="flex-1 overflow-y-auto p-8 z-10 space-y-4 scrollbar-thin scrollbar-thumb-[#E0E0E0]">
-                    {/* Results List */}
-                    {selectedRun.results.map((r: any, i: number) => (
-                        <ScenarioCard key={i} result={r} />
-                    ))}
+                <div className="flex-1 overflow-y-auto p-8 z-10 space-y-8 scrollbar-thin scrollbar-thumb-[#E0E0E0]">
+
+                    {/* Optimization History Section */}
+                    {selectedRun.optimization_history && selectedRun.optimization_history.length > 0 && (
+                        <div className="space-y-4">
+                            <h3 className="text-xs font-bold uppercase tracking-widest text-[#AAAAAA] flex items-center gap-2">
+                                <IconCheck size={14} /> Updated Prompts History
+                            </h3>
+                            <div className="grid grid-cols-1 gap-4">
+                                {selectedRun.optimization_history.map((opt: any, idx: number) => (
+                                    <div key={idx} className="neu-card p-5 bg-white border-l-4 border-[#333333]">
+                                        <div className="flex justify-between items-center mb-3">
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-[10px] font-bold uppercase text-[#333333] bg-[#E5E5E5] px-2 py-0.5 rounded-full">
+                                                    After Cycle {opt.cycle}
+                                                </span>
+                                                <span className="text-[10px] text-[#777777] italic truncate max-w-xs" title={opt.reasoning}>
+                                                    {opt.reasoning}
+                                                </span>
+                                            </div>
+                                            <button
+                                                onClick={() => handleCopy(opt.new_prompt, idx)}
+                                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wide bg-[#F7F7F7] hover:bg-[#E0E0E0] text-[#555555] transition-colors"
+                                            >
+                                                {copiedIndex === idx ? (
+                                                    <><IconCheck size={12} className="text-green-600" /> Copied</>
+                                                ) : (
+                                                    <><IconCopy size={12} /> Copy Prompt</>
+                                                )}
+                                            </button>
+                                        </div>
+                                        <div className="bg-[#F7F7F7] p-3 rounded-lg border border-[#E0E0E0] text-xs font-mono text-[#444444] leading-relaxed max-h-40 overflow-y-auto scrollbar-thin">
+                                            {opt.new_prompt}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="space-y-4">
+                        <h3 className="text-xs font-bold uppercase tracking-widest text-[#AAAAAA]">Scenario Results</h3>
+
+                        {/* Group Results by Cycle */}
+                        {Array.from(new Set(selectedRun.results.map((r: any) => r.cycle))).map((cycle) => {
+                            const cycleResults = selectedRun.results.filter((r: any) => r.cycle === cycle);
+                            const isLast = cycle === Math.max(...selectedRun.results.map((r: any) => r.cycle));
+
+                            // We use CycleGroup which is already collapsible!
+                            // Need to ensure CycleGroup is imported.
+                            return (
+                                <CycleGroup
+                                    key={cycle}
+                                    cycle={cycle}
+                                    results={cycleResults}
+                                    isLast={isLast}
+                                />
+                            );
+                        })}
+                    </div>
                 </div>
             </div>
         );
     }
 
     return (
-        <div className="flex flex-col h-screen bg-[#F7F7F7] overflow-hidden relative font-sans text-[#333333] animate-fade-in-up">
+        <div className="flex flex-col h-screen bg-[#E5E5E5] overflow-hidden relative font-sans text-[#333333] animate-fade-in-up">
 
             <div className="p-8 z-10 flex items-center justify-between">
                 <div className="flex items-center gap-4">
@@ -79,9 +143,9 @@ export default function HistoryView({ onBack }: { onBack: () => void }) {
                     <div
                         key={run.id}
                         onClick={() => setSelectedRun(run)}
-                        className="neu-card p-6 cursor-pointer group relative overflow-hidden transition-all hover:scale-[1.01]"
+                        className="neu-card p-6 cursor-pointer group relative overflow-hidden transition-all hover:scale-[1.01] h-[320px] w-full min-w-[300px] flex flex-col"
                     >
-                        <div className="flex justify-between items-start mb-6">
+                        <div className="flex justify-between items-start mb-6 shrink-0">
                             <div className="flex items-center gap-2 text-[#AAAAAA] text-xs font-bold uppercase tracking-wider">
                                 {/* Status Dot moved to Header */}
                                 <div className={`w-2.5 h-2.5 rounded-full ${run.success_rate >= (run.config.threshold || 0.8) ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.4)]' : 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.4)]'}`} />
@@ -96,16 +160,16 @@ export default function HistoryView({ onBack }: { onBack: () => void }) {
                             </button>
                         </div>
 
-                        <div className="mb-6 h-32 overflow-hidden relative">
-                            <div className="text-sm font-bold text-[#333333] mb-2">
+                        <div className="mb-6 flex-1 overflow-hidden relative">
+                            <div className="text-sm font-bold text-[#333333] mb-2 truncate">
                                 {run.config.model_name}
                             </div>
-                            <div className="text-xs text-[#777777] leading-relaxed line-clamp-4">
+                            <div className="text-xs text-[#555555] leading-relaxed line-clamp-[8] font-mono">
                                 {run.config.base_prompt}
                             </div>
                         </div>
 
-                        <div className="flex items-center justify-between pt-4 border-t border-[#E0E0E0]">
+                        <div className="flex items-center justify-between pt-4 border-t border-[#E0E0E0] shrink-0">
                             <div>
                                 <div className="text-[9px] uppercase font-bold text-[#AAAAAA] mb-0.5">Success</div>
                                 <div className={`text-xl font-bold ${run.success_rate >= (run.config.threshold || 0.8) ? 'text-[#333333]' : 'text-[#777777]'}`}>

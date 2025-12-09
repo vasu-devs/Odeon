@@ -299,7 +299,18 @@ async def websocket_endpoint(websocket: WebSocket):
     finally:
         # ALWAYS SAVE HISTORY (Even if empty, to show the attempt)
         if config:
-            await websocket.send_json({"type": "log", "message": f"Saving Simulation History (Run ID: {run_id})..."})
+            try:
+                await websocket.send_json({"type": "log", "message": f"Saving Simulation History (Run ID: {run_id})..."})
+            except Exception:
+                pass # Socket likely closed
+
+            # Recalculate success rate based on actual results stored
+            if all_results_storage:
+                passed_count = sum(1 for r in all_results_storage if r.get('passed', False))
+                final_success_rate = passed_count / len(all_results_storage)
+            else:
+                final_success_rate = 0.0
+
             run_data = {
                 "id": run_id,
                 "timestamp": datetime.now().isoformat(),
@@ -311,9 +322,12 @@ async def websocket_endpoint(websocket: WebSocket):
             }
             try:
                 await asyncio.to_thread(history_manager.save_run, run_data)
-                await websocket.send_json({"type": "log", "message": "History Saved."})
+                try:
+                    await websocket.send_json({"type": "log", "message": "History Saved."})
+                except Exception:
+                    pass
             except Exception as hist_e:
-                await websocket.send_json({"type": "error", "message": f"History Save Failed: {hist_e}"})
+                print(f"History Save Failed: {hist_e}")
         
         simulation.console = original_console
 
