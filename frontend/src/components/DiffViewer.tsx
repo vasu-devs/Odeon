@@ -1,6 +1,6 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { diffWords } from 'diff';
-import { IconCompare } from './Icons';
+import { IconCompare, IconCopy, IconCheck } from './Icons';
 
 interface DiffViewerProps {
     oldText?: string;
@@ -10,7 +10,10 @@ interface DiffViewerProps {
 }
 
 export default function DiffViewer({ oldText, newText, reasoning, history }: DiffViewerProps) {
+    const [isCopied, setIsCopied] = useState(false);
+
     // Determine what to display: provided props or latest history
+    // history is expected to be newest-first, so history[0] is the latest
     const latest = history && history.length > 0 ? history[0] : null;
 
     const displayOld = latest ? latest.old_prompt : oldText;
@@ -22,6 +25,13 @@ export default function DiffViewer({ oldText, newText, reasoning, history }: Dif
         return diffWords(displayOld, displayNew);
     }, [displayOld, displayNew]);
 
+    const handleCopy = () => {
+        if (!displayNew) return;
+        navigator.clipboard.writeText(displayNew);
+        setIsCopied(true);
+        setTimeout(() => setIsCopied(false), 2000);
+    };
+
     if (!diff) return null;
 
     return (
@@ -31,6 +41,14 @@ export default function DiffViewer({ oldText, newText, reasoning, history }: Dif
                     <div className="flex items-center gap-2 text-[#333333] font-bold text-[10px] uppercase tracking-widest">
                         <IconCompare size={14} className="text-[#333333]" /> Prompt Evolution
                     </div>
+                    <button
+                        onClick={handleCopy}
+                        className="flex items-center gap-1.5 px-2 py-1 rounded hover:bg-[#E5E5E5] text-[#555555] transition-colors text-[9px] font-bold uppercase tracking-wider"
+                        title="Copy New Prompt"
+                    >
+                        {isCopied ? <IconCheck size={12} className="text-green-600" /> : <IconCopy size={12} />}
+                        {isCopied ? 'Copied' : 'Copy'}
+                    </button>
                 </div>
                 {displayReason && (
                     <div className="flex items-start gap-2 mt-2 bg-white/50 p-2 rounded border border-[#E0E0E0]/50">
