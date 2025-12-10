@@ -79,8 +79,8 @@ Odeon uses a decoupled, event-driven architecture to handle high-concurrency sim
 
 ```mermaid
 graph TD
-    User[User / Browser] -->|HTTP / WS| FE[Frontend (React + Vite)]
-    FE -->|WebSocket| API[Backend API (FastAPI)]
+    User[User / Browser] -->|HTTP / WS| FE["Frontend (React + Vite)"]
+    FE -->|WebSocket| API["Backend API (FastAPI)"]
     
     subgraph "Backend Enclave"
         API -->|Dispatch| Sim[Simulator Engine]
