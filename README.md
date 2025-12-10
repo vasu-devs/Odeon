@@ -1,44 +1,96 @@
-# Odeon - AI Agent Optimization Platform
+<div align="center">
+  <h1>Odeon</h1>
+  <h3>AI Agent Optimization Platform</h3>
+  <p>Simulate, Evaluate, and Evolve AI Agents with Autonomous Feedback Loops.</p>
 
-![License](https://img.shields.io/badge/license-MIT-blue.svg)
-![Python](https://img.shields.io/badge/python-3.10+-blue.svg)
-![React](https://img.shields.io/badge/react-19.0.0-blue.svg)
-![Status](https://img.shields.io/badge/status-active-success.svg)
+  [![License](https://img.shields.io/badge/license-MIT-blue.svg?style=flat-square)](LICENSE)
+  [![Python](https://img.shields.io/badge/python-3.10+-blue.svg?style=flat-square)](https://www.python.org/)
+  [![React](https://img.shields.io/badge/react-19.0.0-blue.svg?style=flat-square)](https://react.dev/)
+  [![Tailwind](https://img.shields.io/badge/tailwind-4.0-38bdf8.svg?style=flat-square)](https://tailwindcss.com/)
+  [![Status](https://img.shields.io/badge/status-active-success.svg?style=flat-square)]()
+  [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](http://makeapullrequest.com)
 
-**Odeon** is an advanced AI testing and optimization platform designed to simulate, evaluate, and self-correct AI agent behaviors. It automates the critical loop of generating diverse test scenarios, running high-fidelity conversations, scoring performance against strict KPIs, and iteratively rewriting the system prompt to meet specific business targets.
+  [![Visualize in MapMyRepo](https://mapmyrepo.vasudev.live/badge.svg)](https://mapmyrepo.vasudev.live/?user=vasu-devs&repo=Odeon)
+</div>
 
-[![Visualize in MapMyRepo](https://mapmyrepo.vasudev.live/badge.svg)](https://mapmyrepo.vasudev.live/?user=vasu-devs&repo=Odeon)
+---
+
+## 📖 Table of Contents
+
+-   [Overview](#-overview)
+-   [Key Features](#-key-features)
+-   [System Architecture](#-system-architecture)
+-   [Technology Stack](#-technology-stack)
+-   [Quick Start](#-quick-start)
+-   [Configuration](#-configuration)
+-   [API Reference](#-api-reference)
+-   [Roadmap](#-roadmap)
+-   [Troubleshooting](#-troubleshooting)
+-   [Contributing](#-contributing)
+-   [License](#-license)
+-   [Contact](#-contact)
+
+---
+
+## 🔭 Overview
+
+**Odeon** is a cutting-edge playground for **AI Agent Engineering**. It solves the "black box" problem of prompt tuning by automating the evaluation loop. Instead of manually tweaking prompts and hoping for better results, Odeon:
+
+1.  **Simulates** realistic user interactions (e.g., a stubborn debt defaulter).
+2.  **Evaluates** the agent's performance against strict numerical KPIs (Empathy, Negotiation, Repetition).
+3.  **Optimizes** the system prompt automatically using a meta-agent if targets are missed.
+
+The result is a self-improving agent that converges on the optimal persona for your specific business goals.
 
 ---
 
 ## 🚀 Key Features
 
-*   **⚡ Autonomous Optimization Loop**: Automatically generates diverse user personas (e.g., "Angry Debtor", "Confused Elderly"), runs simulations, evaluates performance, and rewrites the agent's prompt if KPIs are missed.
-*   **📡 Real-Time Simulation Stream**: Watch agent-user interactions unfold live via deeply integrated WebSockets, providing immediate insight into agent behavior.
-*   **🔄 Prompt Evolution Diffing**: Visualizes exactly what changed in the system prompt between iterations using a git-style Red/Green diff viewer.
-*   **🎨 Strict Monochrome UI**: A high-end, distraction-free "Neumorphic" interface designed for focus and clarity, built with the latest Tailwind CSS 4.
-*   **📊 Comprehensive Metrics**: Tracks **Repetition**, **Negotiation**, and **Empathy** scores with strict numeric thresholds (1-10) to ensure quality.
-*   **🗄️ Simulation History**: Archives every run with full transcripts, scores, and evolved prompts in a local SQLite database for regression testing.
-*   **🎛️ Interactive Controls**: Fine-tune thresholds, max optimization cycles, and switch models (Llama 3 via Groq) on the fly.
+*   **⚡ Autonomous Optimization Loop**
+    *   Generates diverse user personas (e.g., "The Lawyer", "The Crying Student").
+    *   Runs high-fidelity simulations using **Groq** for near-instant inference.
+    *   Rewrites prompts automatically based on granular feedback.
+
+*   **📡 Real-Time Simulation Stream**
+    *   Bi-directional **WebSocket** integration.
+    *   Watch agent interactions unfold character-by-character.
+    *   Live state tracking of current optimization cycles.
+
+*   **🔄 Neural Visual Diffing**
+    *   Git-style Red/Green diff viewer for Prompt Evolution.
+    *   See exactly *which* words changed to improve empathy or compliance.
+
+*   **🎨 Neo-Brutalist / Glassmorphism UI**
+    *   A high-end, distraction-free interface built with **Tailwind CSS 4**.
+    *   Dark mode focused "Deep Space" aesthetic.
+
+*   **📊 Strict Metric Thresholds**
+    *   Define pass/fail criteria (1-10) for **Repetition**, **Negotiation**, and **Empathy**.
+    *   Agents must meet *all* criteria to "pass" a scenario.
+
+*   **🗄️ SQLite History & Replay**
+    *   Every run is archived. You can replay, analyze, and fork past simulations.
 
 ---
 
 ## 🏗️ System Architecture
 
-Odeon employs a modern, decoupled architecture to ensure speed and scalability.
+Odeon uses a decoupled, event-driven architecture to handle high-concurrency simulations.
 
 ```mermaid
 graph TD
     User[User / Browser] -->|HTTP / WS| FE[Frontend (React + Vite)]
     FE -->|WebSocket| API[Backend API (FastAPI)]
     
-    subgraph "Backend Core"
+    subgraph "Backend Enclave"
         API -->|Dispatch| Sim[Simulator Engine]
         Sim -->|Generate| Gen[Persona Generator]
         Sim -->|Chat| Agent[Agent LLM]
         Sim -->|Chat| UserSim[User Simulator LLM]
-        Sim -->|Grade| Eval[Evaluator]
-        Sim -->|Optimize| Opt[Prompt Optimizer]
+        
+        Sim -->|Data| Eval[Evaluator]
+        Eval -->|Feedback| Opt[Prompt Optimizer]
+        Opt -->|New Prompt| Agent
         
         Agent <--> Groq[Groq Llama 3 API]
         UserSim <--> Groq
@@ -53,197 +105,149 @@ graph TD
 
 ## 🛠️ Technology Stack
 
-### Backend
-*   **Python 3.10+**: Core logic and scripting.
-*   **FastAPI**: High-performance async API framework for REST and WebSockets.
-*   **LangChain**: Orchestration of LLM chains and structured output parsing.
-*   **Groq API**: Ultra-low latency inference for Llama 3 models, enabling rapid simulation cycles.
-*   **Pydantic**: Strict data validation for configuration and API models.
-*   **SQLite**: Lightweight, zero-config persistence for run history.
-
-### Frontend
-*   **React 19**: Utilizing the latest concurrent features and Hooks.
-*   **Vite**: Next-generation frontend tooling for instant dev server start.
-*   **TypeScript**: Full type safety across the entire UI codebase.
-*   **Tailwind CSS 4**: Utility-first styling with custom Neumorphic utilities and animations.
-*   **Recharts**: For visualizing optimization trends (planned).
+| Component | Tech | Description |
+| :--- | :--- | :--- |
+| **Backend** | Python 3.10+ | Core Application Logic |
+| **API Framework** | FastAPI | Async, High-performance REST & WS |
+| **AI Inference** | Groq Cloud | Llama 3.1-8b / 70b (Ultra-fast) |
+| **Orchestration** | LangChain | Chain Management & Parsing |
+| **Database** | SQLite | Lightweight embedded persistence |
+| **Frontend** | React 19 | UI Library with Concurrent Mode |
+| **Build Tool** | Vite | Instant HMR & bundling |
+| **Styling** | Tailwind CSS 4 | Utility-first CSS engine |
+| **Type Safety** | TypeScript | End-to-end typing |
 
 ---
 
-## 📋 Prerequisites
+## ⚡ Quick Start
 
-Before running the project, ensure you have the following installed:
+### Prerequisites
+-   **Python 3.10+**
+-   **Node.js 18+** & `npm`
+-   **Groq API Key** (Get it free at [console.groq.com](https://console.groq.com))
 
-1.  **Python 3.10** or higher.
-2.  **Node.js 18** or higher (and `npm`).
-3.  **Groq API Key**: Get one for free from [console.groq.com](https://console.groq.com).
-
----
-
-## ⚙️ Installation & Setup
-
-### 1. Clone the Repository
+### 1. Clone & Install
 ```bash
-git clone https://github.com/yourusername/odeon.git
+git clone https://github.com/vasu-devs/odeon.git
 cd odeon
 ```
 
 ### 2. Backend Setup
-Navigate to the `backend` directory and set up the Python environment.
-
 ```bash
 cd backend
-
-# Create a virtual environment
 python -m venv venv
 
-# Activate the virtual environment
-# Windows:
-venv\Scripts\activate
-# Mac/Linux:
-source venv/bin/activate
+# Activate Venv
+source venv/bin/activate  # Mac/Linux
+# venv\Scripts\activate   # Windows
 
-# Install dependencies
 pip install -r requirements.txt
 ```
 
-**Configuration (.env)**
-Create a `.env` file in the `backend/` directory with your keys:
-
-```env
-# Required for Optimization & Simulation
-GROQ_API_KEY=gsk_your_groq_api_key_here
-
-# Optional: Google Gemini Key if used for specific sub-tasks
-GEMINI_API_KEY=your_gemini_key
-```
-
 ### 3. Frontend Setup
-Open a new terminal, navigate to the `frontend` directory, and install Node dependencies.
-
 ```bash
-cd frontend
-
-# Install packages
+cd ../frontend
 npm install
 ```
 
 ---
 
-## 🏃‍♂️ Running the Application
+## ⚙️ Configuration
 
-You need to run both the backend server and the frontend development server simultaneously.
+Create a `.env` file in the `backend/` directory:
 
-### Terminal 1: Backend
+```ini
+# Required: The engine power
+GROQ_API_KEY=gsk_your_key_here
+
+# Optional: For experimental multi-model support
+GEMINI_API_KEY=your_gemini_key
+```
+
+### Running the App
+**Terminal 1 (Backend):**
 ```bash
 cd backend
-# Ensure venv is active
+# Make sure venv is active
 python server.py
 ```
-*The server will start on `http://localhost:8000`*
 
-### Terminal 2: Frontend
+**Terminal 2 (Frontend):**
 ```bash
 cd frontend
 npm run dev
 ```
-*The UI will launch at `http://localhost:5173` (or similar)*
+
+Visit `http://localhost:5173` to launch Odeon.
 
 ---
 
 ## 🔌 API Reference
 
-### REST Endpoints
+### WebSocket Protocol (`/ws/simulate`)
 
-| Method | Endpoint | Description |
-| :--- | :--- | :--- |
-| `GET` | `/history` | Fetch all past simulation runs and their results. |
-| `DELETE` | `/history/{run_id}` | Delete a specific simulation run by ID. |
-
-### WebSocket Protocol
-
-**Endpoint**: `ws://localhost:8000/ws/simulate`
-
-**Client -> Server (Start Config):**
+**Request (Start Simulation):**
 ```json
 {
   "api_key": "gsk_...",
   "model_name": "llama3-8b-8192",
-  "base_prompt": "You are a debt collector...",
-  "max_cycles": 5,
-  "batch_size": 1,
-  "thresholds": {
-    "repetition": 7.0,
-    "negotiation": 8.0,
-    "empathy": 6.0,
-    "overall": 7.5
-  }
+  "base_prompt": "You are a specialized agent...",
+  "thresholds": { "negotiation": 8.0, "empathy": 7.5 }
 }
 ```
 
-**Server -> Client (Events):**
-*   `{"type": "log", "message": "..."}`: Real-time system logs.
-*   `{"type": "result", "transcript": "...", "score": 8.5, ...}`: Completed conversation result.
-*   `{"type": "optimization", "new_prompt": "...", ...}`: Prompt update notification.
+**Response (Events):**
+-   `log`: Raw system output.
+-   `result`: Final conversation metrics.
+-   `optimization`: Diff of the prompt change.
 
 ---
 
-## 📖 Usage Guide
+## 🔮 Roadmap
 
-1.  **Configure Simulation**:
-    *   Open the Dashboard.
-    *   On the **Sidebar**, set your `Initial System Prompt` (defines the Agent's persona).
-    *   Set **Targets**: Define the strict 1-10 scores required for Repetition, Negotiation, and Empathy.
-    *   Select **Model**: Use `llama-3.1-8b-instant` for speed.
-
-2.  **Start Optimization**:
-    *   Click the **Start Optimization** button.
-    *   The system will generate a "Defaulter" persona (e.g., "John, struggling with medical bills").
-    *   The Agent and Defaulter will converse.
-
-3.  **Monitor Progress**:
-    *   **Live Stream**: Watch the conversation transcript appear in the center pane.
-    *   **Logs**: View detailed system logs in the bottom-right terminal.
-    *   **Optimization**: If the agent fails a scenario, the **Prompt Evolution** panel (top-right) will update with the *new, optimized prompt*, highlighting changes in Red/Green.
-
-4.  **Review History**:
-    *   Click the **History** card in the navbar.
-    *   View past runs, seeing the exact prompt that was generated at each cycle.
-    *   Click any scenario to open the **Detailed Modal** and see the full transcript and granular feedback.
+-   [ ] **Multi-Agent Swarms**: Simulating group dynamics.
+-   [ ] **Vector Memory**: Giving the agent long-term memory across runs.
+-   [ ] **Cloud Deploy**: One-click deploy to Vercel/Railway.
+-   [ ] **Custom Models**: Support for Anthropic/OpenAI via LiteLLM.
+-   [ ] **Export Results**: PDF/CSV export for compliance reporting.
 
 ---
 
-## 📂 Project Structure
+## ❓ Troubleshooting
 
-```bash
-Odeon/
-├── backend/
-│   ├── main.py              # Entry point utilities
-│   ├── server.py            # FastAPI & WebSocket server
-│   ├── agent.py             # The AI Agent implementation
-│   ├── simulator.py         # Conversation loop logic
-│   ├── connections.py       # LLM Client Wrappers
-│   ├── evaluator.py         # Grading & Scoring logic
-│   ├── optimizer.py         # Prompt rewriting logic 
-│   ├── history_manager.py   # SQLite database interaction
-│   └── requirements.txt     # Python dependencies
-│
-└── frontend/
-    ├── src/
-    │   ├── components/
-    │   │   ├── Dashboard.tsx    # Main Layout
-    │   │   ├── Sidebar.tsx      # Config Panel
-    │   │   ├── LogTerminal.tsx  # System Logs
-    │   │   ├── ScenarioCard.tsx # Result Display & Modal
-    │   │   ├── UseHistory.tsx   # History Page
-    │   │   └── DiffViewer.tsx   # Prompt Comparison
-    │   ├── index.css            # Tailwind & Neumorphic styles
-    │   └── main.tsx             # React Entry point
-    └── package.json             # Node dependencies
-```
+**Q: I get a `401 Unauthorized` error from Groq.**
+A: Check your `.env` file. Ensure `GROQ_API_KEY` is set correctly and has no trailing spaces.
+
+**Q: The frontend shows "Disconnected".**
+A: Ensure the backend is running on port `8000`. Check the terminal for any Python traceback errors.
+
+**Q: Optimize Loop isn't updating the prompt.**
+A: Ensure your "Overall" threshold isn't set too low. If the agent passes the low threshold, it won't optimize. Increase the target scores.
 
 ---
 
-## ⚖️ License
+## 🤝 Contributing
 
-This project is licensed under the MIT License - see the `LICENSE` file for details.
+Contributions are what make the open-source community such an amazing place to learn, inspire, and create. Any contributions you make are **greatly appreciated**.
+
+1.  Fork the Project
+2.  Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
+3.  Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
+4.  Push to the Branch (`git push origin feature/AmazingFeature`)
+5.  Open a Pull Request
+
+---
+
+## 📄 License
+
+Distributed under the MIT License. See `LICENSE` for more information.
+
+---
+
+## ✍️ Authors
+
+*   **Vasudev Siddh** - *Initial Work* - [vasu-devs](https://github.com/vasu-devs)
+
+<div align="center">
+  <p>Built with ❤️ by the RiverLine Team</p>
+</div>
