@@ -56,8 +56,6 @@ class ConversationSimulator:
             if "goodbye" in agent_msg.lower() or "bye" in  defaulter_msg.lower():
                 break
             
-            # Rate Limit Protection
-            console.print("[dim]Cooling down API (2s)...[/dim]")
-            time.sleep(2)
+
         
         return self.logs
