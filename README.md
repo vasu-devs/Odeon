@@ -249,5 +249,5 @@ Distributed under the MIT License. See `LICENSE` for more information.
 *   **Vasudev Siddh** - *Initial Work* - [vasu-devs](https://github.com/vasu-devs)
 
 <div align="center">
-  <p>Built with ❤️ by the RiverLine Team</p>
+  <p>Built with ❤️ by the Vasu-devs</p>
 </div>
