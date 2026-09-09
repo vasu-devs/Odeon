@@ -10,7 +10,7 @@
   [![Status](https://img.shields.io/badge/status-active-success.svg?style=flat-square)]()
   [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](http://makeapullrequest.com)
 
-  [![Visualize in MapMyRepo](https://mapmyrepo.vasudev.live/badge.svg)](https://mapmyrepo.vasudev.live/?user=vasu-devs&repo=Odeon)
+  [![Visualize in MapMyRepo](https://mapmyrepo.siddhvasudev.com/badge.svg)](https://mapmyrepo.siddhvasudev.com/?user=vasu-devs&repo=Odeon)
 </div>
 
 ---
